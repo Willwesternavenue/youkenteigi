@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
+import { migrationDbUrl } from "./env";
 import { ROLES } from "../types/domain";
 
 /**
@@ -9,13 +10,13 @@ import { ROLES } from "../types/domain";
  * flow have data to work with on first run. Idempotent: clears tables first.
  */
 async function main() {
-  const url = process.env.DATABASE_URL;
+  const url = migrationDbUrl();
   if (!url) {
     throw new Error(
-      "DATABASE_URL is required to seed (Supabase Postgres connection string).",
+      "No database URL found. Set DATABASE_URL (or the Vercel/Supabase POSTGRES_URL_NON_POOLING / POSTGRES_URL) before seeding.",
     );
   }
-  const client = postgres(url, { max: 1 });
+  const client = postgres(url, { max: 1, prepare: false });
   const db = drizzle(client, { schema });
 
   // Clear (order respects FKs)

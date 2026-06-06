@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { migrationDbUrl } from "./env";
 
 /**
  * Applies pending SQL migrations to the Postgres database.
@@ -11,13 +12,15 @@ import postgres from "postgres";
  * transaction pooler.
  */
 async function main() {
-  const url = process.env.DATABASE_URL;
+  const url = migrationDbUrl();
   if (!url) {
     throw new Error(
-      "DATABASE_URL is required to run migrations (Supabase Postgres connection string).",
+      "No database URL found. Set DATABASE_URL (or the Vercel/Supabase POSTGRES_URL_NON_POOLING / POSTGRES_URL) before running migrations.",
     );
   }
-  const client = postgres(url, { max: 1 });
+  // prepare:false so this also works over the transaction pooler if that's the
+  // only URL available; max:1 keeps migrations on a single connection.
+  const client = postgres(url, { max: 1, prepare: false });
   const db = drizzle(client);
   await migrate(db, { migrationsFolder: "./db/migrations" });
   console.log("✓ migrations applied");

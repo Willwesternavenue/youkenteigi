@@ -1,4 +1,5 @@
 import type { Config } from "drizzle-kit";
+import { migrationDbUrl } from "./db/env";
 
 /**
  * Drizzle config for Supabase Postgres.
@@ -12,6 +13,6 @@ export default {
   out: "./db/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "",
+    url: migrationDbUrl(),
   },
 } satisfies Config;

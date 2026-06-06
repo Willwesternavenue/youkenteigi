@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
+import { runtimeDbUrl } from "./env";
 
 /**
  * The ONLY module allowed to import the database driver.
@@ -16,9 +17,7 @@ import * as schema from "./schema";
  * during `next build`) is safe.
  */
 
-const DB_URL = process.env.DATABASE_URL ?? "";
-
-const client = postgres(DB_URL, { prepare: false });
+const client = postgres(runtimeDbUrl(), { prepare: false });
 
 export const database = drizzle(client, { schema });
 export { schema };
