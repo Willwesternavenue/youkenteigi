@@ -1,6 +1,14 @@
 import type { Config } from "drizzle-kit";
 import { migrationDbUrl } from "./db/env";
 
+// drizzle-kit (db:push/db:generate) doesn't run through tsx, so load .env.local
+// here too (if present) — after `vercel env pull` this picks up POSTGRES_URL*.
+try {
+  process.loadEnvFile?.(".env.local");
+} catch {
+  // no .env.local (CI / Vercel) — env comes from the platform.
+}
+
 /**
  * Drizzle config for Supabase Postgres.
  *
