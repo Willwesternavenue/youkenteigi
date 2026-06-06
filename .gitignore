@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# app data (local sqlite + storage) and secrets
+/data
+.env.local
+
+# claude code local (per-machine) settings
+.claude/settings.local.json
+
+# test artifacts
+/.playwright-mcp
+/*.png

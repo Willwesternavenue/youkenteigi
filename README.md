@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 要件定義書けるくん Internal
 
-## Getting Started
+AI開発会社の社内向けプリセールス支援ツール。初回商談のヒアリング内容をもとに、**RFP** と **要件定義書** を生成し、編集・バージョン管理し、**Markdown / Word(DOCX) / PDF** で出力できます。
 
-First, run the development server:
+> 本リポジトリは仕様書（[`docs/yokenteigi_kakerukun_internal_spec_v1.md`](docs/yokenteigi_kakerukun_internal_spec_v1.md)）の **コア生成スライス** を実装したものです。見積・スケジュール・ガント・画面設計・提案PPT・レビュー承認は今後のスライスで追加します。
+
+## クイックスタート（ローカル / クラウド不要）
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run setup     # SQLite DB を作成・マイグレーション・初期データ投入
+npm run dev       # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+APIキーやクラウド登録なしで全機能が動作します（AIは決定論的なモック）。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### ログイン（ローカル開発）
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+パスワード不要。`@aidealab.com` のメールアドレスでログインします。初期データに以下のユーザーが登録されています（ロール別）:
 
-## Learn More
+```
+admin@aidealab.com / manager@ / sales@ / pm@ / engineer@ / designer@ / viewer@
+```
 
-To learn more about Next.js, take a look at the following resources:
+`@aidealab.com` 以外のアドレスは拒否されます。未登録の社内アドレスは初回ログイン時に `viewer` として自動作成されます。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 実Claude Sonnetを使う
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`.env.local` を作成し（`.env.example` 参照）:
 
-## Deploy on Vercel
+```
+AI_PROVIDER=claude
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-sonnet-4-6
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+未設定ならモックプロバイダで動作します。アプリ側のコードは一切変わりません。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 主な機能
+
+| 機能 | 説明 |
+|---|---|
+| 認証 | dev cookie セッション + `@aidealab.com` ドメイン制限 + ロール (RBAC) |
+| 案件管理 | 作成 / 一覧（検索・絞り込み）/ 詳細タブ / ステータス変更 / ダッシュボード |
+| ヒアリング | 商談内容・議事録のテキスト入力 |
+| AI整理 | 確認済み / 推定 / 未確認 / リスク / 推奨フェーズ・形態・導入形態 |
+| 追加質問 | カテゴリ別のクライアント確認事項 |
+| RFP生成 | 18セクション（仕様 §9.2）。セクション編集・再生成 |
+| 要件定義書生成 | 26セクション（仕様 §10.2）。セクション編集・再生成 |
+| 見積 | **大項目→中項目→小項目**の3階層＋**設計/実装/テスト/調整/管理（時間）**の工数分解。高レベル（大項目小計）の**折りたたみツリー**でクリック展開・全展開/全折りたたみ・行ごと編集・自動集計（バッファ/税）・アクティビティ別/大項目別集計・プラン別・自然言語調整・XLSX出力（仕様 §11） |
+| スケジュール | タスク/依存/期間/担当・クリティカルパス・ビジュアルガントチャート・社内詳細/クライアント共有の2ビュー・マイルストーン・自然言語調整（「PoCを8週間にして」）・PDF出力（仕様 §12） |
+| 画面設計 | 案件情報・要件定義から **画面一覧**（目的/UI要素/状態/優先度）・**画面遷移図**・**システム構成図**・**Claude Design向けプロンプト**を生成。図はAIが構造化データを生成し自前描画（アプリ内SVG＋編集可能PPTX図形＋PDF、ブラウザ不要）（仕様 §13） |
+| 提案スライド | 要件定義書＋見積＋スケジュール＋画面設計（構成図・画面遷移）から提案デックを自動構成・アプリ内スライドプレビュー（16:9・サムネイル一覧）・**編集可能な PowerPoint(.pptx) / PDF** に書き出し。スライド基調色 #264bf1（仕様 §13・§14） |
+| バージョン管理 | 保存ごとに新バージョンを追記（履歴は不変） |
+| 出力 | Markdown / DOCX / PDF / XLSX / PPTX（日本語フォント埋め込み済み） |
+
+## アーキテクチャ（差し替え可能な抽象化レイヤー）
+
+仕様の要求どおり、Supabase / Google Cloud SDK をアプリ全体に散らさず、すべて facade 経由でアクセスします。**アプリ・ルート・コンポーネントのコードは facade だけを import** します。
+
+| Facade | ローカル実装 | 将来の差し替え先 |
+|---|---|---|
+| [`lib/auth.ts`](lib/auth.ts) | iron-session (暗号化cookie) | Supabase Auth / Google Identity Platform |
+| [`lib/db.ts`](lib/db.ts) | Drizzle + SQLite (libSQL) | Cloud SQL for PostgreSQL |
+| [`lib/storage.ts`](lib/storage.ts) | ローカルファイルシステム | Supabase Storage / Cloud Storage |
+| [`lib/ai/providers.ts`](lib/ai/providers.ts) | Mock / Claude Sonnet | GPT / Gemini 追加 |
+| [`lib/export/`](lib/export) | docx / pdfmake (ブラウザ不要) | — |
+
+DB の差し替えは [`db/client.ts`](db/client.ts) のドライバを変えるだけで、[`db/schema.ts`](db/schema.ts) と [`lib/db.ts`](lib/db.ts) はそのまま再利用できます（カラム名は仕様 §17 の Postgres DDL と1:1）。全テーブルに `organization_id` を持たせ、将来のSaaS化（マルチテナント）に対応しています。
+
+## スクリプト
+
+```bash
+npm run dev          # 開発サーバ
+npm run build        # 本番ビルド
+npm run setup        # マイグレーション + 初期データ
+npm run db:reset     # DBを初期化して作り直す
+npm run db:generate  # スキーマ変更からマイグレーションSQLを生成
+npm run typecheck    # 型チェック
+```
+
+## 技術スタック
+
+Next.js 16 (App Router) / React 19 / TypeScript / Tailwind CSS v4 / shadcn(base-ui) / Drizzle ORM + libSQL(SQLite) / iron-session / zod / @anthropic-ai/sdk / docx / pdfmake / exceljs / pptxgenjs / marked
