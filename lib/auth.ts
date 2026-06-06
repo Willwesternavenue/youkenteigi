@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
@@ -33,7 +34,13 @@ export function isAllowedEmail(email: string): boolean {
   return email.trim().toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
 }
 
-export async function getSession(): Promise<SessionUser | null> {
+/**
+ * Resolves the current user (Supabase auth → profile). Wrapped in React
+ * `cache()` so the getUser() + profile lookup runs at most ONCE per request,
+ * even though nested layouts + the page each call requireUser(). The proxy
+ * (proxy.ts) performs the separate per-request token refresh.
+ */
+export const getSession = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -54,7 +61,7 @@ export async function getSession(): Promise<SessionUser | null> {
     name: profile.name ?? email.split("@")[0],
     role: profile.role as Role,
   };
-}
+});
 
 export async function requireUser(): Promise<SessionUser> {
   const user = await getSession();
