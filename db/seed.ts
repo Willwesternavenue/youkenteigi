@@ -38,7 +38,7 @@ async function main() {
   });
 
   const NAMES: Record<string, string> = {
-    admin: "山田 太郎",
+    admin: "館入",
     manager: "田中 花子",
     sales: "佐藤 健",
     pm: "鈴木 一郎",
@@ -46,6 +46,12 @@ async function main() {
     designer: "伊藤 彩",
     viewer: "渡辺 学",
   };
+  // Per-role login email. Defaults to `${role}@aidealab.com`; override here for
+  // real accounts.
+  const EMAILS: Partial<Record<string, string>> = {
+    admin: "tachiiri@aidealab.com",
+  };
+  const emailFor = (role: string) => EMAILS[role] ?? `${role}@aidealab.com`;
   const userIds: Record<string, string> = {};
   let i = 1;
   for (const role of ROLES) {
@@ -54,7 +60,7 @@ async function main() {
     await db.insert(schema.profiles).values({
       id,
       organizationId: orgId,
-      email: `${role}@aidealab.com`,
+      email: emailFor(role),
       name: NAMES[role] ?? role,
       role,
     });
