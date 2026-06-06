@@ -1,17 +1,17 @@
 import type { Config } from "drizzle-kit";
 
 /**
- * Drizzle config for the local SQLite (libSQL) adapter.
+ * Drizzle config for Supabase Postgres.
  *
- * The DB file lives under ./data (gitignored). When this app later migrates to
- * Supabase / Cloud SQL, only `dialect` + `dbCredentials` change here and the
- * driver in db/client.ts swaps — the schema in db/schema.ts is reused as-is.
+ * `db:generate` diffs db/schema.ts and writes SQL to ./db/migrations without a
+ * live connection. `db:migrate` / `db:push` need a reachable `DATABASE_URL`
+ * (use the Supabase direct connection or session pooler for migrations).
  */
 export default {
   schema: "./db/schema.ts",
   out: "./db/migrations",
-  dialect: "sqlite",
+  dialect: "postgresql",
   dbCredentials: {
-    url: "file:./data/app.db",
+    url: process.env.DATABASE_URL ?? "",
   },
 } satisfies Config;

@@ -1,5 +1,5 @@
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 import { ROLES } from "../types/domain";
 
@@ -9,8 +9,13 @@ import { ROLES } from "../types/domain";
  * flow have data to work with on first run. Idempotent: clears tables first.
  */
 async function main() {
-  const url = process.env.DATABASE_URL ?? "file:./data/app.db";
-  const client = createClient({ url });
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL is required to seed (Supabase Postgres connection string).",
+    );
+  }
+  const client = postgres(url, { max: 1 });
   const db = drizzle(client, { schema });
 
   // Clear (order respects FKs)
@@ -208,7 +213,7 @@ async function main() {
   console.log("✓ seeded org + 7 users + 1 sample project + review");
   console.log("  login with any of:");
   for (const role of ROLES) console.log(`    ${role}@aidealab.com  (${role})`);
-  client.close();
+  await client.end();
 }
 
 main().catch((err) => {

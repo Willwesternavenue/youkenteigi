@@ -1,1 +1,0 @@
-ALTER TABLE `projects` ADD `development_form` text DEFAULT 'quasi_mandate';

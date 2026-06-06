@@ -1,1 +1,0 @@
-ALTER TABLE `screens` ADD `wireframe` text;

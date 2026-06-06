@@ -1,19 +1,24 @@
-import { drizzle } from "drizzle-orm/libsql";
-import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import * as schema from "./schema";
 
 /**
  * The ONLY module allowed to import the database driver.
  *
  * Everything else in the app talks to the database through the repository
- * facade in lib/db.ts. To migrate to Supabase / Cloud SQL, replace the driver
- * here (drizzle-orm/postgres-js + a connection string) and keep db/schema.ts
- * and lib/db.ts untouched.
+ * facade in lib/db.ts. The driver here is postgres-js pointed at Supabase
+ * Postgres via `DATABASE_URL` (use the Supavisor / pgbouncer *transaction
+ * pooler* connection string on Vercel serverless).
+ *
+ * `prepare: false` is required for the transaction pooler (pgbouncer does not
+ * support prepared statements in transaction mode). The client connects lazily
+ * on first query, so importing this module without a reachable database (e.g.
+ * during `next build`) is safe.
  */
 
-const DB_URL = process.env.DATABASE_URL ?? "file:./data/app.db";
+const DB_URL = process.env.DATABASE_URL ?? "";
 
-const client = createClient({ url: DB_URL });
+const client = postgres(DB_URL, { prepare: false });
 
 export const database = drizzle(client, { schema });
 export { schema };

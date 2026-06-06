@@ -11,13 +11,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx db/migrate.ts",
     "db:seed": "tsx db/seed.ts",
-    "db:reset": "rm -f data/app.db && npm run db:migrate && npm run db:seed",
+    "db:push": "drizzle-kit push",
+    "db:reset": "npm run db:migrate && npm run db:seed",
     "setup": "npm run db:migrate && npm run db:seed"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
     "@base-ui/react": "^1.5.0",
-    "@libsql/client": "^0.17.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.7.1",
@@ -29,6 +29,7 @@
     "next": "16.2.7",
     "next-themes": "^0.4.6",
     "pdfmake": "^0.3.9",
+    "postgres": "^3.4.9",
     "pptxgenjs": "^4.0.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",

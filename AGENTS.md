@@ -24,12 +24,13 @@ npm run db:reset               # DB を作り直す（data/app.db は gitignore�
 
 - **アプリ/ルート/コンポーネント/サーバアクションは facade だけを import する**: `lib/auth.ts` `lib/db.ts` `lib/storage.ts` `lib/ai/providers.ts` `lib/export`。
 - ドライバを直接 import してよいのは facade の中だけ:
-  - `@libsql/client` → `db/client.ts` のみ
+  - `postgres` (postgres-js) → `db/client.ts` / `db/migrate.ts` / `db/seed.ts` のみ
   - `iron-session` → `lib/auth.ts` / `lib/session-cookie.ts` のみ
   - `@anthropic-ai/sdk` → `lib/ai/claude-provider.ts` のみ
   - `node:fs` (storage) → `lib/storage.ts` のみ
 - DB の全テーブルに `organizationId`。repo メソッドは必ず `orgId` を先頭引数で受け、それで絞り込む（テナント分離は repo で担保）。
-- カラム名は仕様 §17 の Postgres DDL と1:1（PG移行時に `db/schema.ts` を再利用するため）。
+- DB は Supabase Postgres（`db/schema.ts` は `drizzle-orm/pg-core`）。json列は `jsonb`、行メタの時刻列は `timestamptz`（`mode: "string"` で読む）、業務日付（start_date 等）は `text`。アプリ実行は **transaction pooler**（:6543, `prepare:false`）、マイグレーション/seed は **direct接続/session pooler**（:5432）。
+- カラム名は仕様 §17 の Postgres DDL と1:1。
 - `documents` は追記専用。編集も「新バージョンの INSERT」（`getLatest` は version desc）。
 
 ## AIプロバイダ
@@ -40,7 +41,7 @@ npm run db:reset               # DB を作り直す（data/app.db は gitignore�
 
 - ブラウザ不要。`marked` で Markdown→共通AST（`lib/export/markdown-ast.ts`）→ `to-docx.ts` / `to-pdf.ts`。
 - PDF は日本語フォント `lib/export/fonts/NotoSansJP-Regular.ttf` を pdfmake の仮想FSに読み込んで埋め込む（無いと文字化け）。
-- pdfmake は **コンパイル済みCJS** の `pdfmake/js/Printer` 等を使う（`pdfmake/src/*` は生ESMで bundler が解決できない）。`next.config.ts` の `serverExternalPackages` に `pdfmake`/`docx`/`@libsql/client`。
+- pdfmake は **コンパイル済みCJS** の `pdfmake/js/Printer` 等を使う（`pdfmake/src/*` は生ESMで bundler が解決できない）。`next.config.ts` の `serverExternalPackages` に `pdfmake`/`docx`/`exceljs`/`pptxgenjs`。
 - バイナリ DL はサーバアクション不可。`app/api/export/[documentId]/route.ts`（runtime=nodejs）で `Content-Disposition` 付き Response を返す。
 
 ## UIの注意（shadcn = base-ui 版）

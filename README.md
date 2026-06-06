@@ -4,15 +4,16 @@ AI開発会社の社内向けプリセールス支援ツール。初回商談の
 
 > 本リポジトリは仕様書（[`docs/yokenteigi_kakerukun_internal_spec_v1.md`](docs/yokenteigi_kakerukun_internal_spec_v1.md)）の **コア生成スライス** を実装したものです。見積・スケジュール・ガント・画面設計・提案PPT・レビュー承認は今後のスライスで追加します。
 
-## クイックスタート（ローカル / クラウド不要）
+## クイックスタート
 
 ```bash
 npm install
-npm run setup     # SQLite DB を作成・マイグレーション・初期データ投入
+cp .env.example .env.local   # DATABASE_URL に Supabase Postgres を設定
+npm run setup     # Postgres にマイグレーション適用・初期データ投入
 npm run dev       # http://localhost:3000
 ```
 
-APIキーやクラウド登録なしで全機能が動作します（AIは決定論的なモック）。
+DB は Supabase Postgres が必要です（`DATABASE_URL`）。AI は既定で決定論的なモック（APIキー不要）。
 
 ### ログイン（ローカル開発）
 
@@ -61,12 +62,12 @@ ANTHROPIC_MODEL=claude-sonnet-4-6
 | Facade | ローカル実装 | 将来の差し替え先 |
 |---|---|---|
 | [`lib/auth.ts`](lib/auth.ts) | iron-session (暗号化cookie) | Supabase Auth / Google Identity Platform |
-| [`lib/db.ts`](lib/db.ts) | Drizzle + SQLite (libSQL) | Cloud SQL for PostgreSQL |
+| [`lib/db.ts`](lib/db.ts) | Drizzle + Supabase Postgres (postgres-js) | Cloud SQL for PostgreSQL |
 | [`lib/storage.ts`](lib/storage.ts) | ローカルファイルシステム | Supabase Storage / Cloud Storage |
 | [`lib/ai/providers.ts`](lib/ai/providers.ts) | Mock / Claude Sonnet | GPT / Gemini 追加 |
 | [`lib/export/`](lib/export) | docx / pdfmake (ブラウザ不要) | — |
 
-DB の差し替えは [`db/client.ts`](db/client.ts) のドライバを変えるだけで、[`db/schema.ts`](db/schema.ts) と [`lib/db.ts`](lib/db.ts) はそのまま再利用できます（カラム名は仕様 §17 の Postgres DDL と1:1）。全テーブルに `organization_id` を持たせ、将来のSaaS化（マルチテナント）に対応しています。
+DB ドライバは [`db/client.ts`](db/client.ts) に隔離（postgres-js）、スキーマは [`db/schema.ts`](db/schema.ts)（`drizzle-orm/pg-core`、カラム名は仕様 §17 の Postgres DDL と1:1）、repo は [`lib/db.ts`](lib/db.ts)。全テーブルに `organization_id` を持たせ、将来のSaaS化（マルチテナント）に対応しています。
 
 ## スクリプト
 
@@ -81,4 +82,4 @@ npm run typecheck    # 型チェック
 
 ## 技術スタック
 
-Next.js 16 (App Router) / React 19 / TypeScript / Tailwind CSS v4 / shadcn(base-ui) / Drizzle ORM + libSQL(SQLite) / iron-session / zod / @anthropic-ai/sdk / docx / pdfmake / exceljs / pptxgenjs / marked
+Next.js 16 (App Router) / React 19 / TypeScript / Tailwind CSS v4 / shadcn(base-ui) / Drizzle ORM + Supabase Postgres (postgres-js) / iron-session / zod / @anthropic-ai/sdk / docx / pdfmake / exceljs / pptxgenjs / marked

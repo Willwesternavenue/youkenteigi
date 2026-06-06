@@ -1,1 +1,0 @@
-ALTER TABLE `schedules` ADD `non_working_periods` text;
