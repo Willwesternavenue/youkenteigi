@@ -219,7 +219,7 @@ async function main() {
 
   console.log("✓ seeded org + 7 users + 1 sample project + review");
   console.log("  login with any of:");
-  for (const role of ROLES) console.log(`    ${role}@aidealab.com  (${role})`);
+  for (const role of ROLES) console.log(`    ${emailFor(role)}  (${role})`);
   await client.end();
 }
 

@@ -61,8 +61,6 @@ export function LoginForm() {
           </Button>
           <p className="text-center text-xs text-muted-foreground">
             @aidealab.com のメールアドレスのみ利用できます
-            <br />
-            （ローカル開発: admin@aidealab.com など）
           </p>
         </form>
       </CardContent>
