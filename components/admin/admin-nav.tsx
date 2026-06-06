@@ -33,7 +33,7 @@ interface AdminSection {
 
 export const ADMIN_SECTIONS: AdminSection[] = [
   { seg: "", label: "管理ダッシュボード", icon: LayoutDashboard, permission: "admin.access", ready: true },
-  { seg: "users", label: "ユーザー・ロール", icon: Users, permission: "admin.users", ready: false },
+  { seg: "users", label: "ユーザー・ロール", icon: Users, permission: "admin.users", ready: true },
   { seg: "org", label: "組織設定", icon: Building2, permission: "admin.org", ready: false },
   { seg: "rate-cards", label: "レートカード", icon: Calculator, permission: "admin.ratecard", ready: false },
   { seg: "templates", label: "テンプレート", icon: FileText, permission: "admin.templates", ready: false },

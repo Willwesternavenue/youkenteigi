@@ -12,6 +12,12 @@ export async function loginAction(email: string) {
         error: `@${ALLOWED_DOMAIN} のメールアドレスのみログインできます。`,
       };
     }
+    if (result.error === "disabled") {
+      return {
+        ok: false as const,
+        error: "このアカウントは無効化されています。管理者にお問い合わせください。",
+      };
+    }
     return {
       ok: false as const,
       error: "組織が初期化されていません。`npm run db:seed` を実行してください。",

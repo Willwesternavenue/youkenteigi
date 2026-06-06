@@ -60,7 +60,7 @@ export function requireRole(user: SessionUser, permission: Permission): void {
 
 export type SignInResult =
   | { ok: true }
-  | { ok: false; error: "forbidden_domain" | "no_org" };
+  | { ok: false; error: "forbidden_domain" | "no_org" | "disabled" };
 
 export async function signIn(emailRaw: string): Promise<SignInResult> {
   const email = emailRaw.trim().toLowerCase();
@@ -79,6 +79,11 @@ export async function signIn(emailRaw: string): Promise<SignInResult> {
       role: "viewer",
     });
   }
+
+  // Disabled accounts (deactivated by an admin) cannot sign in.
+  if (profile.disabled) return { ok: false, error: "disabled" };
+
+  await db.profiles.recordLogin(profile.id);
 
   const s = await session();
   s.userId = profile.id;

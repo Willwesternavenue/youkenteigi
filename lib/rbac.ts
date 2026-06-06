@@ -62,3 +62,30 @@ export function can(role: Role, permission: Permission): boolean {
   if (role === "admin") return true;
   return MATRIX[permission]?.includes(role) ?? false;
 }
+
+/** Read-only view of the permission matrix (for the admin RBAC display). */
+export const PERMISSION_MATRIX: Readonly<Record<Permission, Role[]>> = MATRIX;
+
+export const PERMISSION_LABELS: Record<Permission, string> = {
+  "project.create": "案件の作成",
+  "project.edit": "案件の編集",
+  "project.status": "ステータス変更",
+  "hearing.edit": "ヒアリング編集",
+  "ai.generate": "AI生成",
+  "document.edit": "成果物の編集",
+  "document.export": "成果物の出力",
+  "review.comment": "レビューコメント",
+  "review.approve": "承認・差し戻し",
+  "admin.access": "管理コンソール",
+  "admin.users": "ユーザー・ロール管理",
+  "admin.org": "組織設定",
+  "admin.ratecard": "レートカード",
+  "admin.templates": "テンプレート",
+  "admin.ai": "AI設定",
+  "admin.usage": "利用状況・コスト",
+  "admin.audit": "監査ログ",
+};
+
+export const PERMISSION_ORDER: Permission[] = Object.keys(
+  PERMISSION_LABELS,
+) as Permission[];

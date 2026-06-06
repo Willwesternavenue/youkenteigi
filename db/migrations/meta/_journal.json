@@ -8,6 +8,13 @@
       "when": 1780748936818,
       "tag": "0000_illegal_chronomancer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780749574113,
+      "tag": "0001_lucky_morlun",
+      "breakpoints": true
     }
   ]
 }

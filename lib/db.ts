@@ -105,7 +105,44 @@ const profilesRepo = {
   listByOrg(orgId: string): Promise<ProfileRow[]> {
     return database.query.profiles.findMany({
       where: eq(profiles.organizationId, orgId),
+      orderBy: [profiles.createdAt],
     });
+  },
+  // 招待 = profile を事前作成。初回ログイン時にこのロールが適用される
+  // (signIn は getByEmail を先に見るため)。
+  async invite(input: {
+    orgId: string;
+    email: string;
+    name?: string;
+    role: Role;
+  }): Promise<ProfileRow> {
+    return profilesRepo.create(input);
+  },
+  async setRole(orgId: string, userId: string, role: Role): Promise<void> {
+    await database
+      .update(profiles)
+      .set({ role, updatedAt: nowIso() })
+      .where(
+        and(eq(profiles.organizationId, orgId), eq(profiles.id, userId)),
+      );
+  },
+  async setDisabled(
+    orgId: string,
+    userId: string,
+    disabled: boolean,
+  ): Promise<void> {
+    await database
+      .update(profiles)
+      .set({ disabled, updatedAt: nowIso() })
+      .where(
+        and(eq(profiles.organizationId, orgId), eq(profiles.id, userId)),
+      );
+  },
+  async recordLogin(userId: string): Promise<void> {
+    await database
+      .update(profiles)
+      .set({ lastLoginAt: nowIso() })
+      .where(eq(profiles.id, userId));
   },
 };
 

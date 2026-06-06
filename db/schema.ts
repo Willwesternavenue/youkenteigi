@@ -46,6 +46,9 @@ export const profiles = pgTable("profiles", {
   name: text("name"),
   email: text("email").notNull().unique(),
   role: text("role").notNull().default("viewer"),
+  // 管理: 無効化されたユーザーはログイン不可（招待は profile 事前作成で表現）
+  disabled: boolean("disabled").notNull().default(false),
+  lastLoginAt: ts("last_login_at"),
   createdAt: ts("created_at").defaultNow().notNull(),
   updatedAt: ts("updated_at").defaultNow().notNull(),
 });
