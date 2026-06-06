@@ -1,8 +1,6 @@
 import "server-only";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { getIronSession } from "iron-session";
-import { sessionOptions, type SessionData } from "@/lib/session-cookie";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { can, type Permission } from "@/lib/rbac";
 import type { Role } from "@/types/domain";
@@ -10,10 +8,14 @@ import type { Role } from "@/types/domain";
 /**
  * Auth facade — the only entry point app code uses for identity.
  *
- * Local dev implementation: an encrypted iron-session cookie holds the signed-in
- * user. Login is email-only (no password) and restricted to the allowed domain.
- * Swapping to Supabase Auth / Google Identity Platform later means replacing the
- * cookie read/write below while keeping these exported signatures identical.
+ * Implementation: Supabase Auth (passwordless email magic-link, restricted to
+ * the allowed domain). The Supabase session lives in cookies (managed by
+ * @supabase/ssr); `profiles` remains the source of truth for org + role,
+ * looked up by email. Login is initiated via the `requestMagicLink` server
+ * action; the link lands on /auth/callback which establishes the session.
+ *
+ * These exported signatures are stable — swapping the auth provider again means
+ * changing only this file + lib/supabase/* + the callback route.
  */
 
 export interface SessionUser {
@@ -27,20 +29,30 @@ export interface SessionUser {
 export const ALLOWED_DOMAIN =
   process.env.ALLOWED_EMAIL_DOMAIN ?? "aidealab.com";
 
-async function session() {
-  const store = await cookies();
-  return getIronSession<SessionData>(store, sessionOptions);
+export function isAllowedEmail(email: string): boolean {
+  return email.trim().toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
 }
 
 export async function getSession(): Promise<SessionUser | null> {
-  const s = await session();
-  if (!s.userId) return null;
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+
+  const email = user.email.toLowerCase();
+  // Defense in depth: only the allowed domain, only active profiles.
+  if (!isAllowedEmail(email)) return null;
+
+  const profile = await db.profiles.getByEmail(email);
+  if (!profile || profile.disabled) return null;
+
   return {
-    userId: s.userId,
-    orgId: s.orgId,
-    email: s.email,
-    name: s.name,
-    role: s.role,
+    userId: profile.id,
+    orgId: profile.organizationId,
+    email: profile.email,
+    name: profile.name ?? email.split("@")[0],
+    role: profile.role as Role,
   };
 }
 
@@ -58,44 +70,7 @@ export function requireRole(user: SessionUser, permission: Permission): void {
   }
 }
 
-export type SignInResult =
-  | { ok: true }
-  | { ok: false; error: "forbidden_domain" | "no_org" | "disabled" };
-
-export async function signIn(emailRaw: string): Promise<SignInResult> {
-  const email = emailRaw.trim().toLowerCase();
-  if (!email.endsWith(`@${ALLOWED_DOMAIN}`)) {
-    return { ok: false, error: "forbidden_domain" };
-  }
-
-  let profile = await db.profiles.getByEmail(email);
-  if (!profile) {
-    // First login: create a viewer profile under the org for this domain.
-    const org = await db.orgs.getByDomain(ALLOWED_DOMAIN);
-    if (!org) return { ok: false, error: "no_org" };
-    profile = await db.profiles.create({
-      orgId: org.id,
-      email,
-      role: "viewer",
-    });
-  }
-
-  // Disabled accounts (deactivated by an admin) cannot sign in.
-  if (profile.disabled) return { ok: false, error: "disabled" };
-
-  await db.profiles.recordLogin(profile.id);
-
-  const s = await session();
-  s.userId = profile.id;
-  s.orgId = profile.organizationId;
-  s.email = profile.email;
-  s.name = profile.name ?? email.split("@")[0];
-  s.role = profile.role as Role;
-  await s.save();
-  return { ok: true };
-}
-
 export async function signOut(): Promise<void> {
-  const s = await session();
-  s.destroy();
+  const supabase = await createSupabaseServerClient();
+  await supabase.auth.signOut();
 }

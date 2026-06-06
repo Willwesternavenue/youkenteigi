@@ -16,7 +16,7 @@ npm run build                  # 本番ビルド（検証ゲート。型チェ�
 npm run db:reset               # DB を作り直す（data/app.db は gitignore）
 ```
 
-ローカルはクラウド/Docker/APIキー不要。ログインは `@aidealab.com` のメール（パスワード無し）。シードユーザー: `pm@aidealab.com` 等（ロール別7名）。
+DB は Supabase Postgres（`DATABASE_URL` 必須）。認証は **Supabase Auth のマジックリンク**（`@aidealab.com` のメールにログインリンク送信→クリック→`/auth/callback`、パスワード無し）。要 env: `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`。シードユーザー: admin=`tachiiri@aidealab.com` ほかロール別。`profiles` が org/role の source of truth（email で照合）。`proxy.ts`（旧 middleware）がセッションcookieを毎リクエスト更新。
 
 ## アーキテクチャの絶対ルール（差し替え可能性を守る）
 
@@ -25,7 +25,7 @@ npm run db:reset               # DB を作り直す（data/app.db は gitignore�
 - **アプリ/ルート/コンポーネント/サーバアクションは facade だけを import する**: `lib/auth.ts` `lib/db.ts` `lib/storage.ts` `lib/ai/providers.ts` `lib/export`。
 - ドライバを直接 import してよいのは facade の中だけ:
   - `postgres` (postgres-js) → `db/client.ts` / `db/migrate.ts` / `db/seed.ts` のみ
-  - `iron-session` → `lib/auth.ts` / `lib/session-cookie.ts` のみ
+  - `@supabase/ssr` (auth) → `lib/auth.ts` / `lib/supabase/*` / `app/auth/callback` / `proxy.ts` のみ
   - `@anthropic-ai/sdk` → `lib/ai/claude-provider.ts` のみ
   - `node:fs` (storage) → `lib/storage.ts` のみ
 - DB の全テーブルに `organizationId`。repo メソッドは必ず `orgId` を先頭引数で受け、それで絞り込む（テナント分離は repo で担保）。
