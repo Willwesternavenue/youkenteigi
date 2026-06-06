@@ -17,7 +17,16 @@ import { runtimeDbUrl } from "./env";
  * during `next build`) is safe.
  */
 
-const client = postgres(runtimeDbUrl(), { prepare: false });
+const client = postgres(runtimeDbUrl(), {
+  // Required for the Supabase transaction pooler (pgbouncer, :6543) — the
+  // runtime connection. Do NOT point runtime at the session pooler (:5432):
+  // it holds a connection per client and exhausts under serverless concurrency
+  // (pages fan out ~10 parallel queries). Migrations/seed use :5432 separately.
+  prepare: false,
+  // Release idle connections promptly so reused serverless instances don't
+  // pin pooler connections.
+  idle_timeout: 20,
+});
 
 export const database = drizzle(client, { schema });
 export { schema };
