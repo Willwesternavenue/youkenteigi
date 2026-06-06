@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, FilePlus2 } from "lucide-react";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  FilePlus2,
+  ShieldCheck,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIdeaLabLogo } from "@/components/brand/logo";
+import { can } from "@/lib/rbac";
+import type { Role } from "@/types/domain";
 
 const NAV = [
   { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
@@ -12,8 +19,11 @@ const NAV = [
   { href: "/projects/new", label: "新規案件", icon: FilePlus2 },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ role }: { role: Role }) {
   const pathname = usePathname();
+  const nav = can(role, "admin.access")
+    ? [...NAV, { href: "/admin", label: "管理コンソール", icon: ShieldCheck }]
+    : NAV;
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r bg-sidebar md:flex">
       <div className="px-5 py-5">
@@ -23,7 +33,7 @@ export function AppSidebar() {
         </div>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-2">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const active =
             item.href === "/projects"
               ? pathname === "/projects"

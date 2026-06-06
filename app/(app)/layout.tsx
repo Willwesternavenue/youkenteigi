@@ -10,7 +10,7 @@ export default async function AppLayout({
   const user = await requireUser();
   return (
     <div className="flex min-h-screen flex-1">
-      <AppSidebar />
+      <AppSidebar role={user.role} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader name={user.name} email={user.email} role={user.role} />
         <main className="flex-1 overflow-x-hidden px-5 py-6 lg:px-8">

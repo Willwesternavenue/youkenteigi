@@ -1284,6 +1284,96 @@ const screenDesignRepo = {
   },
 };
 
+// ---------- admin console aggregations (handoff §3) ----------
+
+export interface AdminUpcomingProposal {
+  id: string;
+  projectName: string;
+  clientName: string;
+  proposalDueDate: string;
+  status: string;
+}
+
+export interface AdminDashboard {
+  userCount: number;
+  totalProjects: number;
+  byStatus: Record<string, number>;
+  budgetTotal: number;
+  openComments: number;
+  pendingApprovals: number;
+  upcoming: AdminUpcomingProposal[];
+}
+
+const ACTIVE_PROJECT_STATUSES = new Set([
+  "draft",
+  "in_review",
+  "approved",
+  "submitted",
+]);
+
+const adminRepo = {
+  // Cross-project, org-wide snapshot for the management dashboard.
+  async dashboard(orgId: string): Promise<AdminDashboard> {
+    const [projectRows, userRows, openCommentRows, pendingApprovalRows] =
+      await Promise.all([
+        projectsRepo.list(orgId),
+        profilesRepo.listByOrg(orgId),
+        database
+          .select({ id: comments.id })
+          .from(comments)
+          .where(
+            and(
+              eq(comments.organizationId, orgId),
+              eq(comments.status, "open"),
+            ),
+          ),
+        database
+          .select({ id: approvals.id })
+          .from(approvals)
+          .where(
+            and(
+              eq(approvals.organizationId, orgId),
+              eq(approvals.status, "pending"),
+            ),
+          ),
+      ]);
+
+    const byStatus: Record<string, number> = {};
+    let budgetTotal = 0;
+    for (const r of projectRows) {
+      byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
+      budgetTotal += r.budgetMax ?? r.budgetMin ?? 0;
+    }
+
+    const upcoming = projectRows
+      .filter(
+        (p) =>
+          !!p.proposalDueDate && ACTIVE_PROJECT_STATUSES.has(p.status),
+      )
+      .sort((a, b) =>
+        (a.proposalDueDate ?? "").localeCompare(b.proposalDueDate ?? ""),
+      )
+      .slice(0, 8)
+      .map((p) => ({
+        id: p.id,
+        projectName: p.projectName,
+        clientName: p.clientName,
+        proposalDueDate: p.proposalDueDate!,
+        status: p.status,
+      }));
+
+    return {
+      userCount: userRows.length,
+      totalProjects: projectRows.length,
+      byStatus,
+      budgetTotal,
+      openComments: openCommentRows.length,
+      pendingApprovals: pendingApprovalRows.length,
+      upcoming,
+    };
+  },
+};
+
 export const db = {
   orgs,
   profiles: profilesRepo,
@@ -1299,4 +1389,5 @@ export const db = {
   estimates: estimatesRepo,
   schedules: schedulesRepo,
   screenDesign: screenDesignRepo,
+  admin: adminRepo,
 };
