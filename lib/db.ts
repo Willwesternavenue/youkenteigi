@@ -22,6 +22,7 @@ import {
   screens,
   screenTransitions,
   rateCards,
+  templates,
   type ProjectRow,
   type ProfileRow,
   type OrganizationRow,
@@ -39,6 +40,7 @@ import {
   type ScreenRow,
   type ScreenTransitionRow,
   type RateCardRow,
+  type TemplateRow,
 } from "@/db/schema";
 import type { DocumentType, ProjectStatus, Role } from "@/types/domain";
 import type {
@@ -1472,6 +1474,64 @@ const rateCardsRepo = {
   },
 };
 
+// ---------- admin: templates (CRUD only) ----------
+
+export interface TemplateInput {
+  type: string;
+  name: string;
+  body: string;
+  isDefault?: boolean;
+}
+
+const templatesRepo = {
+  list(orgId: string): Promise<TemplateRow[]> {
+    return database.query.templates.findMany({
+      where: eq(templates.organizationId, orgId),
+      orderBy: [templates.type, templates.name],
+    });
+  },
+  async create(
+    orgId: string,
+    input: TemplateInput,
+    createdBy: string,
+  ): Promise<TemplateRow> {
+    const id = uid();
+    await database.insert(templates).values({
+      id,
+      organizationId: orgId,
+      type: input.type,
+      name: input.name,
+      content: { body: input.body },
+      isDefault: input.isDefault ?? false,
+      createdBy,
+    });
+    return (await database.query.templates.findFirst({
+      where: and(eq(templates.organizationId, orgId), eq(templates.id, id)),
+    }))!;
+  },
+  async update(
+    orgId: string,
+    id: string,
+    input: TemplateInput,
+  ): Promise<void> {
+    await database
+      .update(templates)
+      .set({
+        type: input.type,
+        name: input.name,
+        content: { body: input.body },
+        isDefault: input.isDefault ?? false,
+        updatedAt: nowIso(),
+      })
+      .where(and(eq(templates.organizationId, orgId), eq(templates.id, id)));
+  },
+  async delete(orgId: string, id: string): Promise<void> {
+    await database
+      .delete(templates)
+      .where(and(eq(templates.organizationId, orgId), eq(templates.id, id)));
+  },
+};
+
 export const db = {
   orgs,
   profiles: profilesRepo,
@@ -1489,4 +1549,5 @@ export const db = {
   screenDesign: screenDesignRepo,
   admin: adminRepo,
   rateCards: rateCardsRepo,
+  templates: templatesRepo,
 };

@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole, requireUser, ALLOWED_DOMAIN } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { ROLES, type Role } from "@/types/domain";
+import {
+  ROLES,
+  type Role,
+  TEMPLATE_TYPES,
+  type TemplateType,
+} from "@/types/domain";
 
 const roleSchema = z.enum(ROLES as [Role, ...Role[]]);
 
@@ -144,5 +149,48 @@ export async function deleteRateCard(id: string) {
   requireRole(user, "admin.ratecard");
   await db.rateCards.delete(user.orgId, id);
   revalidatePath("/admin/rate-cards");
+  return { ok: true as const };
+}
+
+// ---------- templates (CRUD only) ----------
+
+const templateSchema = z.object({
+  type: z.enum(TEMPLATE_TYPES as [TemplateType, ...TemplateType[]]),
+  name: z.string().trim().min(1, "名称は必須です"),
+  body: z.string().max(200_000, "本文が長すぎます").default(""),
+  isDefault: z.boolean().default(false),
+});
+
+export type TemplateFormInput = z.input<typeof templateSchema>;
+
+export async function createTemplate(input: TemplateFormInput) {
+  const user = await requireUser();
+  requireRole(user, "admin.templates");
+  const parsed = templateSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0].message };
+  }
+  await db.templates.create(user.orgId, parsed.data, user.userId);
+  revalidatePath("/admin/templates");
+  return { ok: true as const };
+}
+
+export async function updateTemplate(id: string, input: TemplateFormInput) {
+  const user = await requireUser();
+  requireRole(user, "admin.templates");
+  const parsed = templateSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0].message };
+  }
+  await db.templates.update(user.orgId, id, parsed.data);
+  revalidatePath("/admin/templates");
+  return { ok: true as const };
+}
+
+export async function deleteTemplate(id: string) {
+  const user = await requireUser();
+  requireRole(user, "admin.templates");
+  await db.templates.delete(user.orgId, id);
+  revalidatePath("/admin/templates");
   return { ok: true as const };
 }

@@ -164,6 +164,23 @@ export const APPROVAL_DECISION_LABELS: Record<ApprovalDecision, string> = {
   rejected: "差し戻し",
 };
 
+/** テンプレート種別（標準文言・章立てライブラリ。spec §17.18） */
+export type TemplateType = "rfp" | "requirements" | "proposal" | "other";
+
+export const TEMPLATE_TYPES: TemplateType[] = [
+  "rfp",
+  "requirements",
+  "proposal",
+  "other",
+];
+
+export const TEMPLATE_TYPE_LABELS: Record<TemplateType, string> = {
+  rfp: "RFP",
+  requirements: "要件定義",
+  proposal: "提案",
+  other: "その他",
+};
+
 /** 開発形態（契約形態）. Default for new projects = quasi_mandate (準委任契約). */
 export type DevelopmentForm = "quasi_mandate" | "consulting" | "waterfall";
 

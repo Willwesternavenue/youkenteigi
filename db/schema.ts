@@ -504,6 +504,23 @@ export const rateCards = pgTable("rate_cards", {
   updatedAt: ts("updated_at").defaultNow().notNull(),
 });
 
+// ---------- admin: templates (spec §17.18) ----------
+// RFP/要件/提案 の標準文言・章立てライブラリ。案件作成時の生成ベース/挿入に使う
+// 想定（現時点では管理=CRUD のみ）。
+export const templates = pgTable("templates", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  type: text("type").notNull(), // rfp | requirements | proposal | other
+  name: text("name").notNull(),
+  content: jsonb("content").$type<{ body: string }>(),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdBy: text("created_by").references(() => profiles.id),
+  createdAt: ts("created_at").defaultNow().notNull(),
+  updatedAt: ts("updated_at").defaultNow().notNull(),
+});
+
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type ProfileRow = typeof profiles.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
@@ -525,3 +542,4 @@ export type ScreenDesignRow = typeof screenDesigns.$inferSelect;
 export type ScreenRow = typeof screens.$inferSelect;
 export type ScreenTransitionRow = typeof screenTransitions.$inferSelect;
 export type RateCardRow = typeof rateCards.$inferSelect;
+export type TemplateRow = typeof templates.$inferSelect;
