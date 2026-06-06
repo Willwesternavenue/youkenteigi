@@ -121,6 +121,8 @@ export const hearings = pgTable("hearings", {
   meetingFormat: text("meeting_format"),
   // 先方の参加者名（自由記述）
   clientParticipants: text("client_participants"),
+  // 弊社側の参加者名（自由記述）
+  ourParticipants: text("our_participants"),
   sourceType: text("source_type").default("text"),
   rawText: text("raw_text"),
   summary: text("summary"),

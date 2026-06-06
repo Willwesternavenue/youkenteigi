@@ -1,0 +1,1 @@
+ALTER TABLE "hearings" ADD COLUMN "our_participants" text;

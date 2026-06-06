@@ -27,6 +27,7 @@ export function HearingEditor({
   initialTime,
   initialFormat,
   initialParticipants,
+  initialOurParticipants,
 }: {
   projectId: string;
   initialText: string;
@@ -34,12 +35,14 @@ export function HearingEditor({
   initialTime: string;
   initialFormat: string;
   initialParticipants: string;
+  initialOurParticipants: string;
 }) {
   const [text, setText] = useState(initialText);
   const [date, setDate] = useState(initialDate);
   const [time, setTime] = useState(initialTime);
   const [format, setFormat] = useState(initialFormat || "online");
   const [participants, setParticipants] = useState(initialParticipants);
+  const [ourParticipants, setOurParticipants] = useState(initialOurParticipants);
   const [pending, startTransition] = useTransition();
 
   function save() {
@@ -50,6 +53,7 @@ export function HearingEditor({
         meetingTime: time || undefined,
         meetingFormat: format || undefined,
         clientParticipants: participants || undefined,
+        ourParticipants: ourParticipants || undefined,
       });
       if (res.ok) toast.success("ヒアリング内容を保存しました");
       else toast.error("保存できませんでした");
@@ -93,14 +97,25 @@ export function HearingEditor({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="participants">先方の参加者名</Label>
-        <Input
-          id="participants"
-          value={participants}
-          onChange={(e) => setParticipants(e.target.value)}
-          placeholder="例: 情報システム部 田中様、カスタマーサポート部 佐藤様"
-        />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="participants">先方の参加者名</Label>
+          <Input
+            id="participants"
+            value={participants}
+            onChange={(e) => setParticipants(e.target.value)}
+            placeholder="例: 情報システム部 田中様、カスタマーサポート部 佐藤様"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ourParticipants">弊社側の参加者名</Label>
+          <Input
+            id="ourParticipants"
+            value={ourParticipants}
+            onChange={(e) => setOurParticipants(e.target.value)}
+            placeholder="例: 営業 佐藤、PM 鈴木"
+          />
+        </div>
       </div>
 
       <div className="space-y-1.5">

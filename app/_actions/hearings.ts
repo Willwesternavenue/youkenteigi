@@ -10,6 +10,7 @@ export interface HearingInput {
   meetingTime?: string;
   meetingFormat?: string;
   clientParticipants?: string;
+  ourParticipants?: string;
 }
 
 const MAX_RAW = 200_000; // ~ヒアリング本文の上限（暴走入力対策）
@@ -33,6 +34,7 @@ export async function saveHearing(projectId: string, input: HearingInput) {
         meetingTime: input.meetingTime,
         meetingFormat: input.meetingFormat,
         clientParticipants: input.clientParticipants,
+        ourParticipants: input.ourParticipants,
         sourceType: "text",
       },
       user.userId,

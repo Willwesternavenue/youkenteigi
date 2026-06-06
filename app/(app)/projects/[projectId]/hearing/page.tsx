@@ -26,6 +26,7 @@ export default async function HearingPage({
         initialTime={hearing?.meetingTime ?? ""}
         initialFormat={hearing?.meetingFormat ?? ""}
         initialParticipants={hearing?.clientParticipants ?? ""}
+        initialOurParticipants={hearing?.ourParticipants ?? ""}
       />
     </div>
   );

@@ -150,6 +150,7 @@ async function main() {
     meetingTime: "14:00",
     meetingFormat: "online",
     clientParticipants: "情報システム部 田中様、カスタマーサポート部 佐藤様",
+    ourParticipants: "営業 佐藤 健、PM 鈴木 一郎",
     rawText:
       "カスタマーサポート部（オペレーター12名、シフト制）で、製品の使い方や保証に関する問い合わせを月に約3,000件受けている。" +
       "チャネルはメールが約6割、電話が約3割、Webチャットが約1割。問い合わせの約半数は社内マニュアルやFAQを見れば回答できる定型的な内容で、" +

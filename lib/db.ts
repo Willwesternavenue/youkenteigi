@@ -309,6 +309,7 @@ const hearingsRepo = {
       meetingTime?: string;
       meetingFormat?: string;
       clientParticipants?: string;
+      ourParticipants?: string;
       sourceType?: string;
     },
     userId: string,
@@ -323,6 +324,7 @@ const hearingsRepo = {
           meetingTime: input.meetingTime,
           meetingFormat: input.meetingFormat,
           clientParticipants: input.clientParticipants,
+          ourParticipants: input.ourParticipants,
           sourceType: input.sourceType ?? "text",
           updatedAt: nowIso(),
         })
@@ -339,6 +341,7 @@ const hearingsRepo = {
       meetingTime: input.meetingTime,
       meetingFormat: input.meetingFormat,
       clientParticipants: input.clientParticipants,
+      ourParticipants: input.ourParticipants,
       sourceType: input.sourceType ?? "text",
       createdBy: userId,
     });

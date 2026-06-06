@@ -15,6 +15,13 @@
       "when": 1780749574113,
       "tag": "0001_lucky_morlun",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780785600341,
+      "tag": "0002_curvy_hellion",
+      "breakpoints": true
     }
   ]
 }
