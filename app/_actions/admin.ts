@@ -88,3 +88,61 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
   revalidatePath("/admin/users");
   return { ok: true as const };
 }
+
+// ---------- rate cards (CRUD only — not wired into estimate-calc) ----------
+
+const rateCardSchema = z.object({
+  name: z.string().trim().min(1, "名称は必須です"),
+  role: roleSchema,
+  dailyRate: z.coerce.number().int().nonnegative("人日単価は0以上の整数で"),
+  monthlyRate: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .nullish()
+    .transform((v) => (v === undefined ? null : v)),
+  validFrom: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => (v ? v : null)),
+  validTo: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => (v ? v : null)),
+});
+
+export type RateCardFormInput = z.input<typeof rateCardSchema>;
+
+export async function createRateCard(input: RateCardFormInput) {
+  const user = await requireUser();
+  requireRole(user, "admin.ratecard");
+  const parsed = rateCardSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0].message };
+  }
+  await db.rateCards.create(user.orgId, parsed.data, user.userId);
+  revalidatePath("/admin/rate-cards");
+  return { ok: true as const };
+}
+
+export async function updateRateCard(id: string, input: RateCardFormInput) {
+  const user = await requireUser();
+  requireRole(user, "admin.ratecard");
+  const parsed = rateCardSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0].message };
+  }
+  await db.rateCards.update(user.orgId, id, parsed.data);
+  revalidatePath("/admin/rate-cards");
+  return { ok: true as const };
+}
+
+export async function deleteRateCard(id: string) {
+  const user = await requireUser();
+  requireRole(user, "admin.ratecard");
+  await db.rateCards.delete(user.orgId, id);
+  revalidatePath("/admin/rate-cards");
+  return { ok: true as const };
+}

@@ -485,6 +485,25 @@ export const screenTransitions = pgTable("screen_transitions", {
   createdAt: ts("created_at").defaultNow().notNull(),
 });
 
+// ---------- admin: rate cards (handoff §3.3) ----------
+// 役割別の人日/月単価。見積の単価ソース候補だが、現時点では管理(CRUD)のみで
+// estimate-calc とは連携しない（決定事項）。
+export const rateCards = pgTable("rate_cards", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  name: text("name").notNull(), // ラベル/バージョン名（例: 標準レート2026）
+  role: text("role").notNull(), // 役割（Role）
+  dailyRate: integer("daily_rate").notNull().default(0), // 人日単価（円）
+  monthlyRate: integer("monthly_rate"), // 月額単価（円, 任意）
+  validFrom: text("valid_from"), // 有効期間 開始（YYYY-MM-DD, 業務日付=text）
+  validTo: text("valid_to"), // 有効期間 終了
+  createdBy: text("created_by").references(() => profiles.id),
+  createdAt: ts("created_at").defaultNow().notNull(),
+  updatedAt: ts("updated_at").defaultNow().notNull(),
+});
+
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type ProfileRow = typeof profiles.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
@@ -505,3 +524,4 @@ export type MilestoneRow = typeof milestones.$inferSelect;
 export type ScreenDesignRow = typeof screenDesigns.$inferSelect;
 export type ScreenRow = typeof screens.$inferSelect;
 export type ScreenTransitionRow = typeof screenTransitions.$inferSelect;
+export type RateCardRow = typeof rateCards.$inferSelect;

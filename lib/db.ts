@@ -21,6 +21,7 @@ import {
   screenDesigns,
   screens,
   screenTransitions,
+  rateCards,
   type ProjectRow,
   type ProfileRow,
   type OrganizationRow,
@@ -37,6 +38,7 @@ import {
   type ScreenDesignRow,
   type ScreenRow,
   type ScreenTransitionRow,
+  type RateCardRow,
 } from "@/db/schema";
 import type { DocumentType, ProjectStatus, Role } from "@/types/domain";
 import type {
@@ -1414,6 +1416,62 @@ const adminRepo = {
   },
 };
 
+// ---------- admin: rate cards (CRUD only) ----------
+
+export interface RateCardInput {
+  name: string;
+  role: string;
+  dailyRate: number;
+  monthlyRate?: number | null;
+  validFrom?: string | null;
+  validTo?: string | null;
+}
+
+const rateCardsRepo = {
+  list(orgId: string): Promise<RateCardRow[]> {
+    return database.query.rateCards.findMany({
+      where: eq(rateCards.organizationId, orgId),
+      orderBy: [rateCards.name, rateCards.role],
+    });
+  },
+  async create(
+    orgId: string,
+    input: RateCardInput,
+    createdBy: string,
+  ): Promise<RateCardRow> {
+    const id = uid();
+    await database.insert(rateCards).values({
+      id,
+      organizationId: orgId,
+      name: input.name,
+      role: input.role,
+      dailyRate: input.dailyRate,
+      monthlyRate: input.monthlyRate ?? null,
+      validFrom: input.validFrom ?? null,
+      validTo: input.validTo ?? null,
+      createdBy,
+    });
+    return (await database.query.rateCards.findFirst({
+      where: and(eq(rateCards.organizationId, orgId), eq(rateCards.id, id)),
+    }))!;
+  },
+  async update(
+    orgId: string,
+    id: string,
+    patch: Partial<RateCardInput>,
+  ): Promise<void> {
+    await database
+      .update(rateCards)
+      .set({ ...patch, updatedAt: nowIso() })
+      .where(and(eq(rateCards.organizationId, orgId), eq(rateCards.id, id)));
+  },
+  async delete(orgId: string, id: string): Promise<void> {
+    await database
+      .delete(rateCards)
+      .where(and(eq(rateCards.organizationId, orgId), eq(rateCards.id, id)));
+  },
+};
+
 export const db = {
   orgs,
   profiles: profilesRepo,
@@ -1430,4 +1488,5 @@ export const db = {
   schedules: schedulesRepo,
   screenDesign: screenDesignRepo,
   admin: adminRepo,
+  rateCards: rateCardsRepo,
 };
