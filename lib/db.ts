@@ -23,6 +23,9 @@ import {
   screenTransitions,
   rateCards,
   templates,
+  aiSettings,
+  aiUsage,
+  auditLogs,
   type ProjectRow,
   type ProfileRow,
   type OrganizationRow,
@@ -41,6 +44,8 @@ import {
   type ScreenTransitionRow,
   type RateCardRow,
   type TemplateRow,
+  type AiSettingsRow,
+  type AiUsageRow,
 } from "@/db/schema";
 import type { DocumentType, ProjectStatus, Role } from "@/types/domain";
 import type {
@@ -1532,6 +1537,189 @@ const templatesRepo = {
   },
 };
 
+// ---------- admin: AI settings ----------
+
+export interface AiSettingsInput {
+  provider: string;
+  defaultModel?: string | null;
+  monthlyBudget?: number | null;
+  promptOverrides?: Record<string, string> | null;
+}
+
+const aiSettingsRepo = {
+  get(orgId: string): Promise<AiSettingsRow | undefined> {
+    return database.query.aiSettings.findFirst({
+      where: eq(aiSettings.organizationId, orgId),
+    });
+  },
+  async upsert(orgId: string, input: AiSettingsInput): Promise<AiSettingsRow> {
+    const existing = await aiSettingsRepo.get(orgId);
+    if (existing) {
+      await database
+        .update(aiSettings)
+        .set({
+          provider: input.provider,
+          defaultModel: input.defaultModel ?? null,
+          monthlyBudget: input.monthlyBudget ?? null,
+          promptOverrides: input.promptOverrides ?? null,
+          updatedAt: nowIso(),
+        })
+        .where(eq(aiSettings.organizationId, orgId));
+    } else {
+      await database.insert(aiSettings).values({
+        id: uid(),
+        organizationId: orgId,
+        provider: input.provider,
+        defaultModel: input.defaultModel ?? null,
+        monthlyBudget: input.monthlyBudget ?? null,
+        promptOverrides: input.promptOverrides ?? null,
+      });
+    }
+    return (await aiSettingsRepo.get(orgId))!;
+  },
+};
+
+// ---------- admin: AI usage ----------
+
+export interface AiUsageSummary {
+  totalEvents: number;
+  monthEvents: number;
+  monthCost: number;
+  byFeature: { feature: string; events: number; cost: number }[];
+  byUser: { name: string | null; events: number; cost: number }[];
+}
+
+const aiUsageRepo = {
+  async record(input: {
+    orgId: string;
+    projectId?: string | null;
+    userId?: string | null;
+    feature: string;
+    model?: string | null;
+    inputTokens?: number;
+    outputTokens?: number;
+    cost?: number;
+  }): Promise<void> {
+    await database.insert(aiUsage).values({
+      id: uid(),
+      organizationId: input.orgId,
+      projectId: input.projectId ?? null,
+      userId: input.userId ?? null,
+      feature: input.feature,
+      model: input.model ?? null,
+      inputTokens: input.inputTokens ?? 0,
+      outputTokens: input.outputTokens ?? 0,
+      cost: input.cost ?? 0,
+    });
+  },
+  async summary(orgId: string): Promise<AiUsageSummary> {
+    const rows = await database
+      .select({
+        feature: aiUsage.feature,
+        cost: aiUsage.cost,
+        createdAt: aiUsage.createdAt,
+        userId: aiUsage.userId,
+        name: profiles.name,
+      })
+      .from(aiUsage)
+      .leftJoin(profiles, eq(aiUsage.userId, profiles.id))
+      .where(eq(aiUsage.organizationId, orgId));
+
+    const monthPrefix = nowIso().slice(0, 7); // YYYY-MM (timestamptz read as string)
+    const byFeatureMap = new Map<string, { events: number; cost: number }>();
+    const byUserMap = new Map<string, { name: string | null; events: number; cost: number }>();
+    let monthEvents = 0;
+    let monthCost = 0;
+
+    for (const r of rows) {
+      const f = byFeatureMap.get(r.feature) ?? { events: 0, cost: 0 };
+      f.events += 1;
+      f.cost += r.cost ?? 0;
+      byFeatureMap.set(r.feature, f);
+
+      const uk = r.userId ?? "—";
+      const u = byUserMap.get(uk) ?? { name: r.name, events: 0, cost: 0 };
+      u.events += 1;
+      u.cost += r.cost ?? 0;
+      byUserMap.set(uk, u);
+
+      if ((r.createdAt ?? "").slice(0, 7) === monthPrefix) {
+        monthEvents += 1;
+        monthCost += r.cost ?? 0;
+      }
+    }
+
+    return {
+      totalEvents: rows.length,
+      monthEvents,
+      monthCost,
+      byFeature: Array.from(byFeatureMap.entries())
+        .map(([feature, v]) => ({ feature, ...v }))
+        .sort((a, b) => b.events - a.events),
+      byUser: Array.from(byUserMap.values()).sort((a, b) => b.events - a.events),
+    };
+  },
+};
+
+// ---------- admin: audit log ----------
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  actorName: string | null;
+  actorRole: string | null;
+  metadata: unknown;
+  createdAt: string;
+}
+
+const auditRepo = {
+  async log(input: {
+    orgId: string;
+    userId?: string | null;
+    projectId?: string | null;
+    action: string;
+    targetType?: string | null;
+    targetId?: string | null;
+    metadata?: unknown;
+  }): Promise<void> {
+    try {
+      await database.insert(auditLogs).values({
+        id: uid(),
+        organizationId: input.orgId,
+        userId: input.userId ?? null,
+        projectId: input.projectId ?? null,
+        action: input.action,
+        targetType: input.targetType ?? null,
+        targetId: input.targetId ?? null,
+        metadata: input.metadata ?? null,
+      });
+    } catch {
+      // Audit logging must never break the underlying operation.
+    }
+  },
+  async list(orgId: string, limit = 200): Promise<AuditEntry[]> {
+    const rows = await database
+      .select({
+        id: auditLogs.id,
+        action: auditLogs.action,
+        targetType: auditLogs.targetType,
+        targetId: auditLogs.targetId,
+        metadata: auditLogs.metadata,
+        createdAt: auditLogs.createdAt,
+        actorName: profiles.name,
+        actorRole: profiles.role,
+      })
+      .from(auditLogs)
+      .leftJoin(profiles, eq(auditLogs.userId, profiles.id))
+      .where(eq(auditLogs.organizationId, orgId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
+    return rows;
+  },
+};
+
 export const db = {
   orgs,
   profiles: profilesRepo,
@@ -1550,4 +1738,7 @@ export const db = {
   admin: adminRepo,
   rateCards: rateCardsRepo,
   templates: templatesRepo,
+  aiSettings: aiSettingsRepo,
+  aiUsage: aiUsageRepo,
+  audit: auditRepo,
 };

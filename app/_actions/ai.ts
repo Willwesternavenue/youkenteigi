@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider, type ProjectSummary } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/usage";
 import type { ProjectRow } from "@/db/schema";
 
 function summary(p: ProjectRow): ProjectSummary {
@@ -35,6 +36,7 @@ export async function organizeHearing(projectId: string) {
       rawText: hearing.rawText,
     });
     await db.hearings.saveOrganized(user.orgId, projectId, organized);
+    await recordAiUsage(user, "hearing_organize", projectId);
     await db.projects.setRecommendations(user.orgId, projectId, {
       recommendedPhase: organized.recommendedPhase,
       recommendedPlatform: organized.recommendedPlatform,

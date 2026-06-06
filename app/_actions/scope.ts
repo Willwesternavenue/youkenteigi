@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/usage";
 import { buildGenerationContext } from "@/lib/ai/context";
 
 /** Generate (or regenerate) a scope & WBS plan tailored to the contract type. */
@@ -21,6 +22,7 @@ export async function generateScopeWbs(projectId: string) {
       ctx.project.developmentForm ?? null,
       user.userId,
     );
+    await recordAiUsage(user, "scope", projectId);
     revalidatePath(`/projects/${projectId}/scope`);
     return { ok: true as const };
   } catch (e) {

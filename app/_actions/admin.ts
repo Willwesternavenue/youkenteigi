@@ -55,6 +55,13 @@ export async function inviteUser(input: InviteInput) {
   }
 
   await db.profiles.invite({ orgId: user.orgId, email, name, role });
+  await db.audit.log({
+    orgId: user.orgId,
+    userId: user.userId,
+    action: "user.invite",
+    targetType: "profile",
+    metadata: { email, role },
+  });
   revalidatePath("/admin/users");
   return { ok: true as const };
 }
@@ -76,6 +83,14 @@ export async function setUserRole(userId: string, role: Role) {
   }
 
   await db.profiles.setRole(user.orgId, userId, parsed.data);
+  await db.audit.log({
+    orgId: user.orgId,
+    userId: user.userId,
+    action: "user.role_change",
+    targetType: "profile",
+    targetId: userId,
+    metadata: { role },
+  });
   revalidatePath("/admin/users");
   return { ok: true as const };
 }
@@ -90,6 +105,13 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
   }
 
   await db.profiles.setDisabled(user.orgId, userId, disabled);
+  await db.audit.log({
+    orgId: user.orgId,
+    userId: user.userId,
+    action: disabled ? "user.disable" : "user.enable",
+    targetType: "profile",
+    targetId: userId,
+  });
   revalidatePath("/admin/users");
   return { ok: true as const };
 }
@@ -192,5 +214,43 @@ export async function deleteTemplate(id: string) {
   requireRole(user, "admin.templates");
   await db.templates.delete(user.orgId, id);
   revalidatePath("/admin/templates");
+  return { ok: true as const };
+}
+
+// ---------- AI settings ----------
+
+const aiSettingsSchema = z.object({
+  provider: z.enum(["mock", "claude"]),
+  defaultModel: z
+    .string()
+    .trim()
+    .nullish()
+    .transform((v) => (v ? v : null)),
+  monthlyBudget: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .nullish()
+    .transform((v) => (v === undefined ? null : v)),
+});
+
+export type AiSettingsFormInput = z.input<typeof aiSettingsSchema>;
+
+export async function saveAiSettings(input: AiSettingsFormInput) {
+  const user = await requireUser();
+  requireRole(user, "admin.ai");
+  const parsed = aiSettingsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: parsed.error.issues[0].message };
+  }
+  await db.aiSettings.upsert(user.orgId, parsed.data);
+  await db.audit.log({
+    orgId: user.orgId,
+    userId: user.userId,
+    action: "ai_settings.update",
+    targetType: "ai_settings",
+    metadata: { provider: parsed.data.provider },
+  });
+  revalidatePath("/admin/ai");
   return { ok: true as const };
 }

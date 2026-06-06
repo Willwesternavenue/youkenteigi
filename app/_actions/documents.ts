@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/usage";
 import { buildGenerationContext as buildContext } from "@/lib/ai/context";
 import type { DocumentType } from "@/types/domain";
 
@@ -27,6 +28,7 @@ export async function generateDocument(
       sections: doc.sections,
       createdBy: user.userId,
     });
+    await recordAiUsage(user, type, projectId);
     revalidatePath(`/projects/${projectId}/${type}`);
     return { ok: true as const };
   } catch (e) {
@@ -75,6 +77,7 @@ export async function regenerateSection(
       ctx,
       instruction,
     );
+    await recordAiUsage(user, `${type}_section`, projectId);
     return { ok: true as const, section };
   } catch (e) {
     return { ok: false as const, error: (e as Error).message };

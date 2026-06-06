@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider, type GeneratedEstimate } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/usage";
 import { buildGenerationContext } from "@/lib/ai/context";
 import { DEFAULT_TAX_RATE } from "@/lib/ai/prompts";
 
@@ -86,6 +87,7 @@ export async function generateEstimate(projectId: string) {
   try {
     const gen = await getProvider().generateEstimate(ctx);
     await persist(user.orgId, projectId, gen, user.userId);
+    await recordAiUsage(user, "estimate", projectId);
     revalidatePath(`/projects/${projectId}/estimate`);
     return { ok: true as const };
   } catch (e) {
@@ -104,6 +106,7 @@ export async function adjustEstimate(projectId: string, instruction: string) {
   try {
     const gen = await getProvider().adjustEstimate(ctx, current, instruction);
     await persist(user.orgId, projectId, gen, user.userId);
+    await recordAiUsage(user, "estimate_adjust", projectId);
     revalidatePath(`/projects/${projectId}/estimate`);
     return { ok: true as const };
   } catch (e) {

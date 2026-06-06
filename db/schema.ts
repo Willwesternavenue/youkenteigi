@@ -521,6 +521,37 @@ export const templates = pgTable("templates", {
   updatedAt: ts("updated_at").defaultNow().notNull(),
 });
 
+// ---------- admin: AI settings + usage (handoff §3.3) ----------
+// org 単位の AI 設定（provider/既定モデル/月次予算/プロンプト上書き）。1 org 1 行。
+export const aiSettings = pgTable("ai_settings", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .references(() => organizations.id)
+    .notNull()
+    .unique(),
+  provider: text("provider").notNull().default("mock"), // mock | claude
+  defaultModel: text("default_model"),
+  monthlyBudget: integer("monthly_budget"), // 月次コスト上限（円, 任意）
+  promptOverrides: jsonb("prompt_overrides").$type<Record<string, string>>(),
+  updatedAt: ts("updated_at").defaultNow().notNull(),
+});
+
+// 生成ごとの利用ログ（案件別・ユーザー別の集計用）。
+export const aiUsage = pgTable("ai_usage", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  projectId: text("project_id").references(() => projects.id),
+  userId: text("user_id").references(() => profiles.id),
+  feature: text("feature").notNull(), // 例: hearing_organize, rfp, requirements...
+  model: text("model"),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  cost: integer("cost").notNull().default(0), // 概算コスト（円）
+  createdAt: ts("created_at").defaultNow().notNull(),
+});
+
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type ProfileRow = typeof profiles.$inferSelect;
 export type ProjectRow = typeof projects.$inferSelect;
@@ -543,3 +574,5 @@ export type ScreenRow = typeof screens.$inferSelect;
 export type ScreenTransitionRow = typeof screenTransitions.$inferSelect;
 export type RateCardRow = typeof rateCards.$inferSelect;
 export type TemplateRow = typeof templates.$inferSelect;
+export type AiSettingsRow = typeof aiSettings.$inferSelect;
+export type AiUsageRow = typeof aiUsage.$inferSelect;

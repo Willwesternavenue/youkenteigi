@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db, type ScheduleInput } from "@/lib/db";
 import { getProvider, type GeneratedSchedule } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/usage";
 import { buildGenerationContext } from "@/lib/ai/context";
 import { computeSchedule } from "@/lib/schedule-calc";
 import { buildNonWorking, type NonWorkingPeriod } from "@/lib/holidays";
@@ -174,6 +175,7 @@ export async function generateSchedule(projectId: string) {
       projectId,
       toScheduleInput(gen, user.userId),
     );
+    await recordAiUsage(user, "schedule", projectId);
     revalidatePath(`/projects/${projectId}/schedule`);
     return { ok: true as const };
   } catch (e) {
@@ -198,6 +200,7 @@ export async function adjustSchedule(projectId: string, instruction: string) {
       projectId,
       toScheduleInput(gen, user.userId, periods),
     );
+    await recordAiUsage(user, "schedule_adjust", projectId);
     revalidatePath(`/projects/${projectId}/schedule`);
     return { ok: true as const };
   } catch (e) {

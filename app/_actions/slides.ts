@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/usage";
 import { buildGenerationContext } from "@/lib/ai/context";
 import { loadDeck } from "@/lib/slides/build";
 import type { Slide } from "@/lib/slides/deck";
@@ -62,6 +63,7 @@ export async function fillSlideBullets(projectId: string, topic: string) {
   }
   try {
     const bullets = await getProvider().generateSlideBullets(ctx, topic);
+    await recordAiUsage(user, "slide_bullets", projectId);
     return { ok: true as const, bullets };
   } catch (e) {
     return { ok: false as const, error: (e as Error).message };

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
+import { recordAiUsage } from "@/lib/ai/usage";
 import { buildGenerationContext } from "@/lib/ai/context";
 
 const REQ_DESIGN_SECTIONS = [
@@ -20,6 +21,7 @@ export async function generateScreenDesign(projectId: string) {
   try {
     const design = await getProvider().generateScreenDesign(ctx);
     await db.screenDesign.saveVersion(user.orgId, projectId, design, user.userId);
+    await recordAiUsage(user, "screen_design", projectId);
     revalidatePath(`/projects/${projectId}/design`);
     revalidatePath(`/projects/${projectId}/slides`);
     return { ok: true as const };
@@ -51,6 +53,7 @@ export async function adjustScreenDesign(
       revised,
       user.userId,
     );
+    await recordAiUsage(user, "screen_design_adjust", projectId);
     revalidatePath(`/projects/${projectId}/design`);
     revalidatePath(`/projects/${projectId}/slides`);
     return { ok: true as const };
@@ -93,6 +96,7 @@ export async function applyDesignToRequirements(projectId: string) {
       sections,
       createdBy: user.userId,
     });
+    await recordAiUsage(user, "design_to_requirements", projectId);
     revalidatePath(`/projects/${projectId}/requirements`);
     revalidatePath(`/projects/${projectId}/slides`);
     return { ok: true as const };

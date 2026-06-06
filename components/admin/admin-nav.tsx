@@ -37,9 +37,9 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   { seg: "org", label: "組織設定", icon: Building2, permission: "admin.org", ready: false },
   { seg: "rate-cards", label: "レートカード", icon: Calculator, permission: "admin.ratecard", ready: true },
   { seg: "templates", label: "テンプレート", icon: FileText, permission: "admin.templates", ready: true },
-  { seg: "ai", label: "AI設定", icon: Bot, permission: "admin.ai", ready: false },
-  { seg: "usage", label: "利用状況・コスト", icon: BarChart3, permission: "admin.usage", ready: false },
-  { seg: "audit", label: "監査ログ", icon: ScrollText, permission: "admin.audit", ready: false },
+  { seg: "ai", label: "AI設定", icon: Bot, permission: "admin.ai", ready: true },
+  { seg: "usage", label: "利用状況・コスト", icon: BarChart3, permission: "admin.usage", ready: true },
+  { seg: "audit", label: "監査ログ", icon: ScrollText, permission: "admin.audit", ready: true },
 ];
 
 const hrefFor = (seg: string) => (seg ? `/admin/${seg}` : "/admin");
