@@ -38,7 +38,7 @@ async function main() {
   });
 
   const NAMES: Record<string, string> = {
-    admin: "館入",
+    admin: "立入",
     manager: "田中 花子",
     sales: "佐藤 健",
     pm: "鈴木 一郎",
