@@ -7,6 +7,7 @@ import {
   FolderKanban,
   FilePlus2,
   ShieldCheck,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIdeaLabLogo } from "@/components/brand/logo";
@@ -17,6 +18,7 @@ const NAV = [
   { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/projects", label: "案件一覧", icon: FolderKanban },
   { href: "/projects/new", label: "新規案件", icon: FilePlus2 },
+  { href: "/guide", label: "使い方ガイド", icon: BookOpen },
 ];
 
 export function AppSidebar({ role }: { role: Role }) {
