@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { findSimilarProjects } from "./rag";
 import type {
   GenerationContext,
   GeneratedDesign,
@@ -83,6 +84,21 @@ export async function buildGenerationContext(
     db.templates.getDefaultBody(orgId, "rfp"),
     db.templates.getDefaultBody(orgId, "requirements"),
   ]);
+  // RAG: similar past projects (signal = description + hearing + confirmed facts).
+  const signal = [
+    project.projectName,
+    project.description,
+    hearing?.rawText,
+    organized?.confirmedFacts.join(" "),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const references = await findSimilarProjects(
+    orgId,
+    projectId,
+    signal,
+    project.industry ?? null,
+  );
   return {
     project: summary(project),
     hearingText: hearing?.rawText ?? "",
@@ -92,5 +108,6 @@ export async function buildGenerationContext(
       rfp: rfpTpl ?? undefined,
       requirements: reqTpl ?? undefined,
     },
+    references,
   };
 }

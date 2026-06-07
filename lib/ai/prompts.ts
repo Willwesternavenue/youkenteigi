@@ -151,6 +151,15 @@ export function serializeContext(ctx: GenerationContext): string {
         .join(" / ")}`,
     );
   }
+  if (ctx.references && ctx.references.length > 0) {
+    lines.push(
+      ``,
+      `# 参考: 類似の過去案件（自社の実績。表現・粒度・見積感の参考にする。内容はこの案件に合わせて具体化すること）`,
+      ...ctx.references.map(
+        (r, i) => `${i + 1}. ${r.projectName} — ${r.summary}`,
+      ),
+    );
+  }
   return lines.filter(Boolean).join("\n");
 }
 
