@@ -55,6 +55,7 @@ async function persist(
   projectId: string,
   gen: GeneratedEstimate,
   userId: string,
+  rateByRole: Record<string, number> = {},
 ) {
   await db.estimates.saveVersion(orgId, projectId, {
     estimateName: gen.estimateName,
@@ -73,7 +74,8 @@ async function persist(
       hoursTest: l.test,
       hoursCoord: l.coordination,
       hoursMgmt: l.management,
-      unitPrice: gen.defaultUnitPrice,
+      // Role-based rate card price (人日単価) if available, else the default.
+      unitPrice: (l.role && rateByRole[l.role]) || gen.defaultUnitPrice,
     })),
     createdBy: userId,
   });
@@ -91,7 +93,8 @@ export async function generateEstimate(projectId: string) {
       () => getProvider().generateEstimate(ctx),
       projectId,
     );
-    await persist(user.orgId, projectId, gen, user.userId);
+    const rateByRole = await db.rateCards.effectiveByRole(user.orgId);
+    await persist(user.orgId, projectId, gen, user.userId, rateByRole);
     revalidatePath(`/projects/${projectId}/estimate`);
     return { ok: true as const };
   } catch (e) {
@@ -114,7 +117,8 @@ export async function adjustEstimate(projectId: string, instruction: string) {
       () => getProvider().adjustEstimate(ctx, current, instruction),
       projectId,
     );
-    await persist(user.orgId, projectId, gen, user.userId);
+    const rateByRole = await db.rateCards.effectiveByRole(user.orgId);
+    await persist(user.orgId, projectId, gen, user.userId, rateByRole);
     revalidatePath(`/projects/${projectId}/estimate`);
     return { ok: true as const };
   } catch (e) {

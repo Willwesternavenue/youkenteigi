@@ -144,9 +144,13 @@ JSON形式: [{"category": string, "questions": string[]}]`;
       .map((d) => `- ${d.key}: ${d.heading} — ${d.guide}`)
       .join("\n");
     const label = type === "rfp" ? "RFP" : "要件定義書";
+    const tpl = type === "rfp" ? ctx.templates?.rfp : ctx.templates?.requirements;
+    const tplBlock = tpl
+      ? `\n\n## 標準テンプレート（章立て・標準文言。これをベースに、案件情報で具体化すること）\n${tpl}\n`
+      : "";
     const prompt = `次の情報をもとに、${label}を作成してください。各セクションをMarkdownで記述します。
 
-${serializeContext(ctx)}
+${serializeContext(ctx)}${tplBlock}
 
 必要なセクション（この順序・このkeyで全て含めること）:
 ${sectionList}

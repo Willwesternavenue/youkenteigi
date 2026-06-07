@@ -23,7 +23,7 @@ export default async function AdminTemplatesPage() {
       <div>
         <h2 className="text-lg font-bold">テンプレート</h2>
         <p className="text-sm text-muted-foreground">
-          RFP・要件定義・提案の標準文言／章立てライブラリ。品質の平準化や生成のベースに使えます。
+          RFP・要件定義・提案の標準文言／章立てライブラリ。種別ごとに「既定」にしたテンプレートは、RFP・要件定義の生成時にベースとして自動適用されます（Claude利用時）。
         </p>
       </div>
       <TemplatesTable rows={items} />

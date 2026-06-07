@@ -79,10 +79,18 @@ export async function buildGenerationContext(
       } as OrganizedHearing)
     : null;
   const design = await loadDesign(orgId, projectId);
+  const [rfpTpl, reqTpl] = await Promise.all([
+    db.templates.getDefaultBody(orgId, "rfp"),
+    db.templates.getDefaultBody(orgId, "requirements"),
+  ]);
   return {
     project: summary(project),
     hearingText: hearing?.rawText ?? "",
     organized,
     design,
+    templates: {
+      rfp: rfpTpl ?? undefined,
+      requirements: reqTpl ?? undefined,
+    },
   };
 }

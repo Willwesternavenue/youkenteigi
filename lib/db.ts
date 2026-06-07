@@ -1477,6 +1477,19 @@ const rateCardsRepo = {
       .delete(rateCards)
       .where(and(eq(rateCards.organizationId, orgId), eq(rateCards.id, id)));
   },
+  // role → daily rate (人日単価), one per role (most recently created wins).
+  async effectiveByRole(orgId: string): Promise<Record<string, number>> {
+    const rows = await rateCardsRepo.list(orgId);
+    const pick: Record<string, { rate: number; key: string }> = {};
+    for (const r of rows) {
+      if (!pick[r.role] || r.createdAt > pick[r.role].key) {
+        pick[r.role] = { rate: r.dailyRate, key: r.createdAt };
+      }
+    }
+    const out: Record<string, number> = {};
+    for (const [role, v] of Object.entries(pick)) out[role] = v.rate;
+    return out;
+  },
 };
 
 // ---------- admin: templates (CRUD only) ----------
@@ -1534,6 +1547,20 @@ const templatesRepo = {
     await database
       .delete(templates)
       .where(and(eq(templates.organizationId, orgId), eq(templates.id, id)));
+  },
+  // The default template body for a type (for generation), if one is marked.
+  async getDefaultBody(
+    orgId: string,
+    type: string,
+  ): Promise<string | null> {
+    const row = await database.query.templates.findFirst({
+      where: and(
+        eq(templates.organizationId, orgId),
+        eq(templates.type, type),
+        eq(templates.isDefault, true),
+      ),
+    });
+    return row?.content?.body ?? null;
   },
 };
 

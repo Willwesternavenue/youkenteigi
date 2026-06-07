@@ -64,6 +64,8 @@ export interface GenerationContext {
   hearingText: string;
   organized?: OrganizedHearing | null;
   design?: GeneratedDesign | null; // current screen design (for cross-consistency)
+  // Org default templates (標準文言/章立て) to use as a base, by document type.
+  templates?: { rfp?: string; requirements?: string };
 }
 
 // ---------- estimate ----------

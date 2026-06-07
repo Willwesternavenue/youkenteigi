@@ -25,7 +25,7 @@ export default async function AdminRateCardsPage() {
       <div>
         <h2 className="text-lg font-bold">レートカード</h2>
         <p className="text-sm text-muted-foreground">
-          役割別の人日／月額単価を管理します（見積の参考単価。現時点では見積生成とは自動連携しません）。
+          役割別の人日／月額単価を管理します。見積を生成すると、各行の役割に対応する人日単価がここから自動適用されます（役割ごとに最新の登録を使用）。
         </p>
       </div>
       <RateCardsTable rows={cards} />
