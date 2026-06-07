@@ -123,20 +123,11 @@ export interface GeneratedSchedule {
 
 // ---------- screen design ----------
 
-export type WireframeKind =
-  | "kpi"
-  | "toolbar"
-  | "search"
-  | "table"
-  | "cards"
-  | "form"
-  | "detail"
-  | "chart"
-  | "list"
-  | "buttons"
-  | "upload"
-  | "auth"
-  | "text";
+// Known kinds the wireframe renderer draws explicitly; any other string falls
+// back to a generic block (see components/design/wireframe-view.tsx default).
+// Kept as a free string so AI output with an unforeseen kind never fails
+// validation.
+export type WireframeKind = string;
 
 export interface WireframeBlock {
   kind: WireframeKind;

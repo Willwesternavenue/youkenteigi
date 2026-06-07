@@ -124,17 +124,36 @@ export class ClaudeProvider implements AIProvider {
     };
 
     const parse = (raw: string): T | null => {
-      const cleaned = raw
+      let cleaned = raw
         .trim()
         .replace(/^```(?:json)?/i, "")
         .replace(/```$/i, "")
         .trim();
+      // Extract the outermost JSON object/array if the model wrapped it in prose.
+      const start = cleaned.search(/[[{]/);
+      const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+      if (start >= 0 && end > start) cleaned = cleaned.slice(start, end + 1);
+      let json: unknown;
       try {
-        const result = schema.safeParse(JSON.parse(cleaned));
-        return result.success ? result.data : null;
-      } catch {
+        json = JSON.parse(cleaned);
+      } catch (e) {
+        console.error(
+          "[ai] JSON.parse failed:",
+          (e as Error).message,
+          "| head:",
+          cleaned.slice(0, 200),
+        );
         return null;
       }
+      const result = schema.safeParse(json);
+      if (!result.success) {
+        console.error(
+          "[ai] schema mismatch:",
+          JSON.stringify(result.error.issues.slice(0, 4)),
+        );
+        return null;
+      }
+      return result.data;
     };
 
     const first = parse(await run());

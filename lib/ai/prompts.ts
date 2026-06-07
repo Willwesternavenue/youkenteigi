@@ -260,121 +260,71 @@ export const generatedEstimateSchema = z.object({
 
 // ---------- schedule (spec §12) ----------
 
+// Lenient design schemas. `kind` is a free string (renderer falls back for
+// unknown kinds) and soft fields use `.catch` defaults, so a slightly-imperfect
+// model response still parses instead of throwing "解析できませんでした".
+const wireframeBlockSchema = z.object({
+  kind: z.string().catch("text"),
+  label: z.string().optional(),
+});
+
+const designScreenBase = {
+  key: z.string(),
+  name: z.string(),
+  role: z.string().optional(),
+  purpose: z.string().catch(""),
+  uiElements: z.array(z.string()).catch([]),
+  states: z.array(z.string()).optional(),
+  priority: z.string().optional(),
+};
+
+const designTransitionSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  trigger: z.string().catch(""),
+  description: z.string().optional(),
+});
+
+const designArchitectureSchema = z.object({
+  layers: z
+    .array(
+      z.object({
+        name: z.string().catch(""),
+        components: z
+          .array(z.object({ name: z.string().catch(""), note: z.string().optional() }))
+          .catch([]),
+      }),
+    )
+    .catch([]),
+  edges: z
+    .array(
+      z.object({
+        from: z.string().catch(""),
+        to: z.string().catch(""),
+        label: z.string().optional(),
+      }),
+    )
+    .catch([]),
+});
+
 export const generatedDesignSchema = z.object({
   screens: z.array(
-    z.object({
-      key: z.string(),
-      name: z.string(),
-      role: z.string().optional(),
-      purpose: z.string(),
-      uiElements: z.array(z.string()),
-      states: z.array(z.string()).optional(),
-      priority: z.string().optional(),
-      wireframe: z
-        .array(
-          z.object({
-            kind: z.enum([
-              "kpi",
-              "toolbar",
-              "search",
-              "table",
-              "cards",
-              "form",
-              "detail",
-              "chart",
-              "list",
-              "buttons",
-              "upload",
-              "auth",
-              "text",
-            ]),
-            label: z.string().optional(),
-          }),
-        )
-        .optional(),
-    }),
+    z.object({ ...designScreenBase, wireframe: z.array(wireframeBlockSchema).optional() }),
   ),
-  transitions: z.array(
-    z.object({
-      from: z.string(),
-      to: z.string(),
-      trigger: z.string(),
-      description: z.string().optional(),
-    }),
-  ),
-  architecture: z.object({
-    layers: z.array(
-      z.object({
-        name: z.string(),
-        components: z.array(
-          z.object({ name: z.string(), note: z.string().optional() }),
-        ),
-      }),
-    ),
-    edges: z.array(
-      z.object({ from: z.string(), to: z.string(), label: z.string().optional() }),
-    ),
-  }),
-  designPrompt: z.string(),
+  transitions: z.array(designTransitionSchema),
+  architecture: designArchitectureSchema,
+  designPrompt: z.string().catch(""),
 });
 
 // Split generation (ClaudeProvider): a lightweight skeleton (no wireframes) and
 // a per-screen wireframe call. Keeps each response small enough to avoid
 // truncation and lets wireframes generate in parallel. Assembled back into
 // generatedDesignSchema's shape by the provider.
-const wireframeBlockSchema = z.object({
-  kind: z.enum([
-    "kpi",
-    "toolbar",
-    "search",
-    "table",
-    "cards",
-    "form",
-    "detail",
-    "chart",
-    "list",
-    "buttons",
-    "upload",
-    "auth",
-    "text",
-  ]),
-  label: z.string().optional(),
-});
-
 export const designSkeletonSchema = z.object({
-  screens: z.array(
-    z.object({
-      key: z.string(),
-      name: z.string(),
-      role: z.string().optional(),
-      purpose: z.string(),
-      uiElements: z.array(z.string()),
-      states: z.array(z.string()).optional(),
-      priority: z.string().optional(),
-    }),
-  ),
-  transitions: z.array(
-    z.object({
-      from: z.string(),
-      to: z.string(),
-      trigger: z.string(),
-      description: z.string().optional(),
-    }),
-  ),
-  architecture: z.object({
-    layers: z.array(
-      z.object({
-        name: z.string(),
-        components: z.array(
-          z.object({ name: z.string(), note: z.string().optional() }),
-        ),
-      }),
-    ),
-    edges: z.array(
-      z.object({ from: z.string(), to: z.string(), label: z.string().optional() }),
-    ),
-  }),
-  designPrompt: z.string(),
+  screens: z.array(z.object(designScreenBase)),
+  transitions: z.array(designTransitionSchema),
+  architecture: designArchitectureSchema,
+  designPrompt: z.string().catch(""),
 });
 
 export const wireframeSchema = z.object({
