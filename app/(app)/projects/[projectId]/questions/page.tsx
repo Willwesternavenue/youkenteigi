@@ -4,6 +4,11 @@ import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+// AI生成は最長~120秒。Server Actionのタイムアウト既定値をページ単位で
+// 引き上げる（Vercel Pro: 最大300秒）。
+export const maxDuration = 300;
+
+
 export default async function QuestionsPage({
   params,
 }: {

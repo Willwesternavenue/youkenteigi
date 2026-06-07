@@ -8,6 +8,11 @@ import {
 import { FileUploadCard } from "@/components/projects/file-upload";
 import { LinksCard } from "@/components/projects/overview-extras";
 
+// AI生成は最長~120秒。Server Actionのタイムアウト既定値をページ単位で
+// 引き上げる（Vercel Pro: 最大300秒）。
+export const maxDuration = 300;
+
+
 export default async function ResourcesPage({
   params,
 }: {

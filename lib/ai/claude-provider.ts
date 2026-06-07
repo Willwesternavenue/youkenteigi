@@ -105,19 +105,22 @@ export class ClaudeProvider implements AIProvider {
             ]
           : []),
       ];
-      const msg = await this.client.messages.create({
+      // Stream the request. Large structured outputs (full requirements/RFP,
+      // screen-design skeleton) take 60–120s; a non-streaming request can hit
+      // the platform's request timeout and get killed mid-flight. Streaming
+      // keeps the connection alive and is the SDK-recommended path for long
+      // output. `finalMessage()` reassembles the complete message.
+      const stream = this.client.messages.stream({
         model: MODEL,
-        // Large structured outputs (full requirements/RFP, screen design with
-        // wireframes+transitions+architecture) overflow a small cap and get
-        // truncated → invalid JSON → parse failure. 16000 is the non-streaming
-        // safe default (Sonnet 4.6 allows up to 64000); raise via streaming if
-        // even this truncates.
+        // Sonnet 4.6 allows up to 64000 output tokens; 16000 is ample for our
+        // structured outputs and avoids truncation → invalid JSON.
         max_tokens: 16000,
         system,
         messages: [
           { role: "user", content: extra ? `${userPrompt}\n\n${extra}` : userPrompt },
         ],
       });
+      const msg = await stream.finalMessage();
       addUsage(msg.usage?.input_tokens ?? 0, msg.usage?.output_tokens ?? 0);
       const block = msg.content.find((b) => b.type === "text");
       return block && block.type === "text" ? block.text : "";

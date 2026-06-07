@@ -6,6 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { OrganizeButton } from "@/components/ai/organize-button";
 import { CheckCircle2, HelpCircle, Lightbulb, AlertTriangle } from "lucide-react";
 
+// AI生成は最長~120秒。Server Actionのタイムアウト既定値をページ単位で
+// 引き上げる（Vercel Pro: 最大300秒）。
+export const maxDuration = 300;
+
+
 function ListCard({
   title,
   icon,

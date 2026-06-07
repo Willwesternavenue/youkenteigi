@@ -3,6 +3,11 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { ReviewBoard } from "@/components/review/review-board";
 
+// AI生成は最長~120秒。Server Actionのタイムアウト既定値をページ単位で
+// 引き上げる（Vercel Pro: 最大300秒）。
+export const maxDuration = 300;
+
+
 export default async function ReviewPage({
   params,
 }: {
