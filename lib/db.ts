@@ -147,11 +147,11 @@ const profilesRepo = {
         and(eq(profiles.organizationId, orgId), eq(profiles.id, userId)),
       );
   },
-  async recordLogin(userId: string): Promise<void> {
+  async recordLogin(orgId: string, userId: string): Promise<void> {
     await database
       .update(profiles)
       .set({ lastLoginAt: nowIso() })
-      .where(eq(profiles.id, userId));
+      .where(and(eq(profiles.organizationId, orgId), eq(profiles.id, userId)));
   },
 };
 

@@ -41,8 +41,7 @@ export async function GET(
     });
   } catch (e) {
     // a hand-edited deck could contain malformed slide data
-    return new Response(`export failed: ${(e as Error).message}`, {
-      status: 500,
-    });
+    console.error("slides export failed", e);
+    return new Response("export failed", { status: 500 });
   }
 }

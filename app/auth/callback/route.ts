@@ -45,6 +45,6 @@ export async function GET(request: Request) {
     return fail("disabled");
   }
 
-  await db.profiles.recordLogin(profile.id);
+  await db.profiles.recordLogin(profile.organizationId, profile.id);
   return NextResponse.redirect(`${origin}/dashboard`);
 }

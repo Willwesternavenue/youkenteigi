@@ -31,6 +31,8 @@ export async function GET(
       "Content-Type": file.fileType ?? "application/octet-stream",
       "Content-Disposition": `${disposition}; filename*=UTF-8''${encoded}`,
       "Content-Length": String(data.length),
+      // Prevent MIME sniffing of user-uploaded content (stored-XSS hardening).
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

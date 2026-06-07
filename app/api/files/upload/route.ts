@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { requireUser, requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { storage } from "@/lib/storage";
 
@@ -31,6 +31,11 @@ function sanitize(name: string): string {
 
 export async function POST(req: NextRequest) {
   const user = await requireUser();
+  try {
+    requireRole(user, "project.edit");
+  } catch {
+    return Response.json({ ok: false, error: "権限がありません" }, { status: 403 });
+  }
 
   const form = await req.formData();
   const projectId = form.get("projectId");
