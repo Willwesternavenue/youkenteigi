@@ -31,7 +31,7 @@ export function AppSidebar({ role }: { role: Role }) {
       <div className="px-5 py-5">
         <AIdeaLabLogo />
         <div className="mt-1.5 text-[10px] font-medium text-muted-foreground">
-          要件定義書けるくん · Internal
+          要件定義かけるくん · Internal
         </div>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-2">

@@ -34,7 +34,7 @@ const SOFT = "FFEEF1FF";
 
 export async function toXlsx(data: EstimateExport): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "要件定義書けるくん Internal";
+  wb.creator = "要件定義かけるくん Internal";
   const ws = wb.addWorksheet("見積");
 
   ws.mergeCells("A1:M1");

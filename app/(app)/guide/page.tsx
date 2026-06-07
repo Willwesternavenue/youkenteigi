@@ -57,7 +57,7 @@ export default async function GuidePage() {
       <header className="space-y-1">
         <h1 className="text-2xl font-bold">使い方ガイド</h1>
         <p className="text-sm text-muted-foreground">
-          要件定義書けるくん Internal の使い方を、初めての方向けに一通りまとめています。
+          要件定義かけるくん Internal の使い方を、初めての方向けに一通りまとめています。
           上から順に読めばプリセールスの一連の流れが分かります。
         </p>
       </header>

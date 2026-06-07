@@ -4,7 +4,7 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# 要件定義書けるくん Internal
+# 要件定義かけるくん Internal
 
 社内向けプリセールス支援ツール。仕様: `docs/yokenteigi_kakerukun_internal_spec_v1.md`。実装済み: **コア生成スライス**（認証〜RFP/要件定義書生成〜MD/DOCX/PDF出力）＋ **見積**（行項目・自動集計・プラン別・自然言語調整・XLSX出力）＋ **スケジュール**（タスク/依存/クリティカルパス・ガントチャート・社内/クライアント2ビュー・自然言語調整・PDF出力）＋ **提案スライド**（提案デック自動構成・アプリ内プレビュー・編集可能PPTX/PDF出力、ブランド色 #264bf1）＋ **画面設計**（画面一覧・画面遷移図・システム構成図・Claude Design向けプロンプト生成）。
 

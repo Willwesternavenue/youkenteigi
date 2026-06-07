@@ -10,7 +10,7 @@ const notoSansJp = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "要件定義書けるくん Internal",
+  title: "要件定義かけるくん Internal",
   description:
     "初回商談から RFP・要件定義書・見積・スケジュールを生成する社内向けプリセールス支援ツール",
 };

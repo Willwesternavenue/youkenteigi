@@ -36,7 +36,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       <CardHeader className="space-y-3 text-center">
         <AIdeaLabMark className="mx-auto size-12" />
         <div>
-          <CardTitle className="text-lg">要件定義書けるくん Internal</CardTitle>
+          <CardTitle className="text-lg">要件定義かけるくん Internal</CardTitle>
           <CardDescription className="mt-1">
             社内アカウントでログイン
           </CardDescription>
