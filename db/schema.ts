@@ -101,6 +101,8 @@ export const projects = pgTable("projects", {
     { title: string; url: string; note: string }[]
   >(),
   note: text("note"),
+  // fixed showcase project — read-only badge in UI, regenerable via seed-sample
+  isSample: boolean("is_sample").default(false).notNull(),
   ownerId: text("owner_id").references(() => profiles.id),
   createdBy: text("created_by").references(() => profiles.id),
   createdAt: ts("created_at").defaultNow().notNull(),

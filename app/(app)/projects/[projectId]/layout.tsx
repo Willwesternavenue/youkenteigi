@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { ProjectNav, ProjectSubTabs } from "@/components/projects/project-nav";
 import { StatusSelect } from "@/components/projects/status-select";
 import { StageSelect } from "@/components/projects/stage-select";
+import { SampleBadge } from "@/components/projects/sample-badge";
 import {
   AssistantProvider,
   AssistantShell,
@@ -35,6 +36,7 @@ export default async function ProjectLayout({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold">{project.projectName}</h1>
+              {project.isSample && <SampleBadge />}
               <StageSelect
                 projectId={project.id}
                 stage={project.projectStage}

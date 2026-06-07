@@ -21,6 +21,7 @@ export default async function ProjectsPage() {
     budgetMax: p.budgetMax,
     proposalDueDate: p.proposalDueDate,
     updatedAt: p.updatedAt,
+    isSample: p.isSample,
   }));
 
   return (

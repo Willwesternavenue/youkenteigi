@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { SampleBadge } from "@/components/projects/sample-badge";
 import { formatBudgetRange, formatDate } from "@/lib/format";
 import {
   PROJECT_STATUSES,
@@ -36,6 +37,7 @@ export interface ProjectListItem {
   budgetMax: number | null;
   proposalDueDate: string | null;
   updatedAt: string;
+  isSample?: boolean;
 }
 
 export function ProjectListTable({ projects }: { projects: ProjectListItem[] }) {
@@ -113,9 +115,12 @@ export function ProjectListTable({ projects }: { projects: ProjectListItem[] }) 
             {filtered.map((p) => (
               <TableRow key={p.id} className="cursor-pointer">
                 <TableCell className="font-medium">
-                  <Link href={`/projects/${p.id}`} className="hover:underline">
-                    {p.projectName}
-                  </Link>
+                  <span className="flex items-center gap-2">
+                    <Link href={`/projects/${p.id}`} className="hover:underline">
+                      {p.projectName}
+                    </Link>
+                    {p.isSample && <SampleBadge />}
+                  </span>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {p.clientName}
