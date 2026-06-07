@@ -318,6 +318,69 @@ export const generatedDesignSchema = z.object({
   designPrompt: z.string(),
 });
 
+// Split generation (ClaudeProvider): a lightweight skeleton (no wireframes) and
+// a per-screen wireframe call. Keeps each response small enough to avoid
+// truncation and lets wireframes generate in parallel. Assembled back into
+// generatedDesignSchema's shape by the provider.
+const wireframeBlockSchema = z.object({
+  kind: z.enum([
+    "kpi",
+    "toolbar",
+    "search",
+    "table",
+    "cards",
+    "form",
+    "detail",
+    "chart",
+    "list",
+    "buttons",
+    "upload",
+    "auth",
+    "text",
+  ]),
+  label: z.string().optional(),
+});
+
+export const designSkeletonSchema = z.object({
+  screens: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      role: z.string().optional(),
+      purpose: z.string(),
+      uiElements: z.array(z.string()),
+      states: z.array(z.string()).optional(),
+      priority: z.string().optional(),
+    }),
+  ),
+  transitions: z.array(
+    z.object({
+      from: z.string(),
+      to: z.string(),
+      trigger: z.string(),
+      description: z.string().optional(),
+    }),
+  ),
+  architecture: z.object({
+    layers: z.array(
+      z.object({
+        name: z.string(),
+        components: z.array(
+          z.object({ name: z.string(), note: z.string().optional() }),
+        ),
+      }),
+    ),
+    edges: z.array(
+      z.object({ from: z.string(), to: z.string(), label: z.string().optional() }),
+    ),
+  }),
+  designPrompt: z.string(),
+});
+
+export const wireframeSchema = z.object({
+  wireframe: z.array(wireframeBlockSchema),
+});
+
 export const generatedScheduleSchema = z.object({
   scheduleName: z.string(),
   startDate: z.string(),

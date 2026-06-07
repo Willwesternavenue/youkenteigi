@@ -24,6 +24,8 @@ import {
   docSectionSchema,
   docTitle,
   generatedDesignSchema,
+  designSkeletonSchema,
+  wireframeSchema,
   generatedDocSchema,
   generatedEstimateSchema,
   generatedScheduleSchema,
@@ -49,6 +51,24 @@ import {
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6";
 
+/** Map with bounded concurrency (avoids firing N parallel API calls at once). */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 export class ClaudeProvider implements AIProvider {
   readonly name = "claude";
   private _client: Anthropic | null = null;
@@ -63,8 +83,28 @@ export class ClaudeProvider implements AIProvider {
   private async complete<T>(
     userPrompt: string,
     schema: ZodType<T>,
+    // Optional large shared context placed in a cached system block. When the
+    // same string is reused across calls (e.g. split screen-design generation),
+    // it's written to cache on the first call and read cheaply thereafter.
+    cachedContext?: string,
   ): Promise<T> {
     const run = async (extra?: string): Promise<string> => {
+      const system = [
+        {
+          type: "text" as const,
+          text: BASE_RULES,
+          cache_control: { type: "ephemeral" as const },
+        },
+        ...(cachedContext
+          ? [
+              {
+                type: "text" as const,
+                text: cachedContext,
+                cache_control: { type: "ephemeral" as const },
+              },
+            ]
+          : []),
+      ];
       const msg = await this.client.messages.create({
         model: MODEL,
         // Large structured outputs (full requirements/RFP, screen design with
@@ -73,13 +113,7 @@ export class ClaudeProvider implements AIProvider {
         // safe default (Sonnet 4.6 allows up to 64000); raise via streaming if
         // even this truncates.
         max_tokens: 16000,
-        system: [
-          {
-            type: "text",
-            text: BASE_RULES,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
+        system,
         messages: [
           { role: "user", content: extra ? `${userPrompt}\n\n${extra}` : userPrompt },
         ],
@@ -259,17 +293,45 @@ ${JSON.stringify(current)}
   async generateScreenDesign(
     ctx: GenerationContext,
   ): Promise<GeneratedDesign> {
-    const prompt = `次の情報をもとに、画面設計（画面一覧 + 画面遷移 + システム構成図 + Claude Design向けプロンプト）を作成してください。
+    // Split generation: a small skeleton call (writes the shared context to the
+    // prompt cache), then per-screen wireframe calls (read the cache) run with
+    // bounded concurrency. Keeps each response small (no truncation), scales to
+    // many screens, and keeps input cost down via caching.
+    const context = serializeContext(ctx);
+
+    const skeletonPrompt = `次の情報をもとに、画面設計の骨子を作成してください（ワイヤーフレームは含めない）。
 - screens: 各画面に一意の key（英小文字）、name、role、purpose、uiElements、states、priority(must/should/could)
-- 各画面に wireframe（主要コンテンツのブロック構成、上から下の順）を付ける。kind は kpi/toolbar/search/table/cards/form/detail/chart/list/buttons/upload/auth/text から選び label に内容（例: 一覧画面=toolbar+table、詳細画面=detail+buttons、ログイン=auth、ダッシュボード=kpi+chart+list）
 - transitions: from/to は screen の key、trigger は遷移のきっかけ
 - architecture: layers は上位（利用者）から下位（データ/外部連携）への層。各層に components。edges は component名どうしの接続
 - designPrompt: Claude Design に渡すUI/UX設計依頼プロンプト（アクセントカラー #264bf1）
 
-${serializeContext(ctx)}
+JSON形式: {"screens":[{"key":string,"name":string,"role":string,"purpose":string,"uiElements":string[],"states":string[],"priority":string}],"transitions":[{"from":string,"to":string,"trigger":string,"description":string}],"architecture":{"layers":[{"name":string,"components":[{"name":string,"note":string}]}],"edges":[{"from":string,"to":string,"label":string}]},"designPrompt":string}`;
+    const skeleton = await this.complete(
+      skeletonPrompt,
+      designSkeletonSchema,
+      context,
+    );
 
-JSON形式: {"screens":[{"key":string,"name":string,"role":string,"purpose":string,"uiElements":string[],"states":string[],"priority":string,"wireframe":[{"kind":string,"label":string}]}],"transitions":[{"from":string,"to":string,"trigger":string,"description":string}],"architecture":{"layers":[{"name":string,"components":[{"name":string,"note":string}]}],"edges":[{"from":string,"to":string,"label":string}]},"designPrompt":string}`;
-    return this.complete(prompt, generatedDesignSchema);
+    const wireframes = await mapLimit(skeleton.screens, 4, async (s) => {
+      const prompt = `次の画面の低忠実度ワイヤーフレーム（主要コンテンツのブロック構成、上から下の順）だけを作成してください。
+画面: ${s.name}（${s.purpose}）${s.role ? ` / 役割: ${s.role}` : ""}
+UI要素: ${(s.uiElements ?? []).join(", ")}
+kind は kpi/toolbar/search/table/cards/form/detail/chart/list/buttons/upload/auth/text から選び、label に内容（例: 一覧画面=toolbar+table、詳細画面=detail+buttons、ログイン=auth、ダッシュボード=kpi+chart+list）。
+
+JSON形式: {"wireframe":[{"kind":string,"label":string}]}`;
+      const r = await this.complete(prompt, wireframeSchema, context);
+      return r.wireframe;
+    });
+
+    return {
+      screens: skeleton.screens.map((s, i) => ({
+        ...s,
+        wireframe: wireframes[i],
+      })),
+      transitions: skeleton.transitions,
+      architecture: skeleton.architecture,
+      designPrompt: skeleton.designPrompt,
+    };
   }
 
   async adjustScreenDesign(
