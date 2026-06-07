@@ -13,7 +13,13 @@ export interface UsageSink {
   calls: number;
 }
 
-const store = new AsyncLocalStorage<UsageSink>();
+// Use a process-global singleton so the SAME AsyncLocalStorage instance is
+// shared even if Next bundles this module into more than one server chunk
+// (otherwise addUsage and withUsageCapture could touch different stores → 0).
+const g = globalThis as unknown as {
+  __aiUsageStore?: AsyncLocalStorage<UsageSink>;
+};
+const store = (g.__aiUsageStore ??= new AsyncLocalStorage<UsageSink>());
 
 export function addUsage(inputTokens: number, outputTokens: number): void {
   const s = store.getStore();
