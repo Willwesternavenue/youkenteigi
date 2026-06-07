@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider, type GeneratedEstimate } from "@/lib/ai/providers";
-import { recordAiUsage } from "@/lib/ai/usage";
+import { runAi } from "@/lib/ai/run";
 import { buildGenerationContext } from "@/lib/ai/context";
 import { DEFAULT_TAX_RATE } from "@/lib/ai/prompts";
 
@@ -85,9 +85,13 @@ export async function generateEstimate(projectId: string) {
   const ctx = await buildGenerationContext(user.orgId, projectId);
   if (!ctx) return { ok: false as const, error: "案件が見つかりません" };
   try {
-    const gen = await getProvider().generateEstimate(ctx);
+    const gen = await runAi(
+      user,
+      "estimate",
+      () => getProvider().generateEstimate(ctx),
+      projectId,
+    );
     await persist(user.orgId, projectId, gen, user.userId);
-    await recordAiUsage(user, "estimate", projectId);
     revalidatePath(`/projects/${projectId}/estimate`);
     return { ok: true as const };
   } catch (e) {
@@ -104,9 +108,13 @@ export async function adjustEstimate(projectId: string, instruction: string) {
     return { ok: false as const, error: "先に見積を生成してください" };
   }
   try {
-    const gen = await getProvider().adjustEstimate(ctx, current, instruction);
+    const gen = await runAi(
+      user,
+      "estimate_adjust",
+      () => getProvider().adjustEstimate(ctx, current, instruction),
+      projectId,
+    );
     await persist(user.orgId, projectId, gen, user.userId);
-    await recordAiUsage(user, "estimate_adjust", projectId);
     revalidatePath(`/projects/${projectId}/estimate`);
     return { ok: true as const };
   } catch (e) {

@@ -79,8 +79,11 @@ export function AiSettingsForm({
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        ※ 現在の実行プロバイダはサーバの環境変数（AI_PROVIDER / ANTHROPIC_API_KEY）が優先されます。
-        ここでの設定は組織の方針として保存され、今後の実行時参照・コストアラートに使用予定です。
+        ※ 実行プロバイダはサーバの環境変数（AI_PROVIDER / ANTHROPIC_API_KEY）が優先されます。
+        <br />
+        ※ <strong>月次コスト上限</strong>は概算コストで強制されます。今月の概算が上限に達すると生成がブロックされます。
+        <strong> 0 を設定すると AI生成を即時停止</strong>（緊急停止スイッチ）。空欄なら無制限。
+        加えて 1ユーザーあたり毎分20回のレート制限がかかります。
       </p>
       <div className="flex justify-end">
         <Button onClick={save} disabled={pending}>

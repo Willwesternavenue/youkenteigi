@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
+import { runAi } from "@/lib/ai/run";
 import { buildConsistencyInput } from "@/lib/ai/consistency-input";
 
 /** Mark a consistency finding as 対応済み / 未対応 (in place on the latest report). */
@@ -37,7 +38,12 @@ export async function runConsistencyReview(projectId: string) {
   const input = await buildConsistencyInput(user.orgId, projectId);
   if (!input) return { ok: false as const, error: "案件が見つかりません" };
   try {
-    const report = await getProvider().reviewConsistency(input);
+    const report = await runAi(
+      user,
+      "consistency_review",
+      () => getProvider().reviewConsistency(input),
+      projectId,
+    );
     await db.consistency.saveVersion(user.orgId, projectId, report, user.userId);
     revalidatePath(`/projects/${projectId}/consistency`);
     return { ok: true as const };

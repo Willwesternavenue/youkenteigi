@@ -42,6 +42,14 @@ export default async function AdminUsagePage() {
   if (!can(user.role, "admin.usage")) redirect("/admin");
 
   const u = await db.aiUsage.summary(user.orgId);
+  const settings = await db.aiSettings.get(user.orgId);
+  const budget = settings?.monthlyBudget ?? null;
+  const budgetHint =
+    budget == null
+      ? "月次上限: 未設定"
+      : budget <= 0
+        ? "AI生成は停止中（上限0）"
+        : `上限 ${formatYen(budget)} / 残り ${formatYen(Math.max(0, budget - u.monthCost))}`;
 
   return (
     <div className="space-y-6">
@@ -54,7 +62,7 @@ export default async function AdminUsagePage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <Stat label="今月の生成回数" value={`${u.monthEvents}`} hint={`累計 ${u.totalEvents} 回`} />
-        <Stat label="今月の概算コスト" value={formatYen(u.monthCost)} hint="Mockは0円" />
+        <Stat label="今月の概算コスト" value={formatYen(u.monthCost)} hint={budgetHint} />
         <Stat label="累計生成回数" value={`${u.totalEvents}`} />
       </div>
 

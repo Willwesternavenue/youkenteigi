@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider, type ProjectSummary } from "@/lib/ai/providers";
-import { recordAiUsage } from "@/lib/ai/usage";
+import { runAi } from "@/lib/ai/run";
 import type { ProjectRow } from "@/db/schema";
 
 function summary(p: ProjectRow): ProjectSummary {
@@ -29,14 +29,20 @@ export async function organizeHearing(projectId: string) {
   if (!hearing?.rawText) {
     return { ok: false as const, error: "先にヒアリング内容を入力してください" };
   }
+  const rawText = hearing.rawText;
 
   try {
-    const organized = await getProvider().generateHearingSummary({
-      project: summary(project),
-      rawText: hearing.rawText,
-    });
+    const organized = await runAi(
+      user,
+      "hearing_organize",
+      () =>
+        getProvider().generateHearingSummary({
+          project: summary(project),
+          rawText,
+        }),
+      projectId,
+    );
     await db.hearings.saveOrganized(user.orgId, projectId, organized);
-    await recordAiUsage(user, "hearing_organize", projectId);
     await db.projects.setRecommendations(user.orgId, projectId, {
       recommendedPhase: organized.recommendedPhase,
       recommendedPlatform: organized.recommendedPlatform,

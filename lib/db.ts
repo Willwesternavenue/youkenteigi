@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { database } from "@/db/client";
 import {
   organizations,
@@ -1611,6 +1611,24 @@ const aiUsageRepo = {
       outputTokens: input.outputTokens ?? 0,
       cost: input.cost ?? 0,
     });
+  },
+  // Count a user's generation events since an ISO timestamp (rate limiting).
+  async countRecent(
+    orgId: string,
+    userId: string,
+    sinceIso: string,
+  ): Promise<number> {
+    const rows = await database
+      .select({ id: aiUsage.id })
+      .from(aiUsage)
+      .where(
+        and(
+          eq(aiUsage.organizationId, orgId),
+          eq(aiUsage.userId, userId),
+          gte(aiUsage.createdAt, sinceIso),
+        ),
+      );
+    return rows.length;
   },
   async summary(orgId: string): Promise<AiUsageSummary> {
     const rows = await database

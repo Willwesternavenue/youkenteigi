@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db, type ScheduleInput } from "@/lib/db";
 import { getProvider, type GeneratedSchedule } from "@/lib/ai/providers";
-import { recordAiUsage } from "@/lib/ai/usage";
+import { runAi } from "@/lib/ai/run";
 import { buildGenerationContext } from "@/lib/ai/context";
 import { computeSchedule } from "@/lib/schedule-calc";
 import { buildNonWorking, type NonWorkingPeriod } from "@/lib/holidays";
@@ -169,13 +169,17 @@ export async function generateSchedule(projectId: string) {
   const ctx = await buildGenerationContext(user.orgId, projectId);
   if (!ctx) return { ok: false as const, error: "案件が見つかりません" };
   try {
-    const gen = await getProvider().generateSchedule(ctx);
+    const gen = await runAi(
+      user,
+      "schedule",
+      () => getProvider().generateSchedule(ctx),
+      projectId,
+    );
     await db.schedules.saveVersion(
       user.orgId,
       projectId,
       toScheduleInput(gen, user.userId),
     );
-    await recordAiUsage(user, "schedule", projectId);
     revalidatePath(`/projects/${projectId}/schedule`);
     return { ok: true as const };
   } catch (e) {
@@ -194,13 +198,17 @@ export async function adjustSchedule(projectId: string, instruction: string) {
   const latest = await db.schedules.getLatest(user.orgId, projectId);
   const periods = (latest?.schedule.nonWorkingPeriods ?? []) as NonWorkingPeriod[];
   try {
-    const gen = await getProvider().adjustSchedule(ctx, current, instruction);
+    const gen = await runAi(
+      user,
+      "schedule_adjust",
+      () => getProvider().adjustSchedule(ctx, current, instruction),
+      projectId,
+    );
     await db.schedules.saveVersion(
       user.orgId,
       projectId,
       toScheduleInput(gen, user.userId, periods),
     );
-    await recordAiUsage(user, "schedule_adjust", projectId);
     revalidatePath(`/projects/${projectId}/schedule`);
     return { ok: true as const };
   } catch (e) {

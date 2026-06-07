@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
-import { recordAiUsage } from "@/lib/ai/usage";
+import { runAi } from "@/lib/ai/run";
 import { buildGenerationContext as buildContext } from "@/lib/ai/context";
 import type { DocumentType } from "@/types/domain";
 
@@ -19,16 +19,20 @@ export async function generateDocument(
 
   try {
     const provider = getProvider();
-    const doc =
-      type === "rfp"
-        ? await provider.generateRfp(ctx)
-        : await provider.generateRequirements(ctx);
+    const doc = await runAi(
+      user,
+      type,
+      () =>
+        type === "rfp"
+          ? provider.generateRfp(ctx)
+          : provider.generateRequirements(ctx),
+      projectId,
+    );
     await db.documents.saveVersion(user.orgId, projectId, type, {
       title: doc.title,
       sections: doc.sections,
       createdBy: user.userId,
     });
-    await recordAiUsage(user, type, projectId);
     revalidatePath(`/projects/${projectId}/${type}`);
     return { ok: true as const };
   } catch (e) {
@@ -71,13 +75,12 @@ export async function regenerateSection(
   const ctx = await buildContext(user.orgId, projectId);
   if (!ctx) return { ok: false as const, error: "案件が見つかりません" };
   try {
-    const section = await getProvider().regenerateSection(
-      type,
-      sectionKey,
-      ctx,
-      instruction,
+    const section = await runAi(
+      user,
+      `${type}_section`,
+      () => getProvider().regenerateSection(type, sectionKey, ctx, instruction),
+      projectId,
     );
-    await recordAiUsage(user, `${type}_section`, projectId);
     return { ok: true as const, section };
   } catch (e) {
     return { ok: false as const, error: (e as Error).message };

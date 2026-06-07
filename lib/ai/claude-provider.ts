@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ZodType } from "zod";
+import { addUsage } from "./usage-context";
 import type { DocumentType } from "@/types/domain";
 import type {
   AIProvider,
@@ -78,6 +79,7 @@ export class ClaudeProvider implements AIProvider {
           { role: "user", content: extra ? `${userPrompt}\n\n${extra}` : userPrompt },
         ],
       });
+      addUsage(msg.usage?.input_tokens ?? 0, msg.usage?.output_tokens ?? 0);
       const block = msg.content.find((b) => b.type === "text");
       return block && block.type === "text" ? block.text : "";
     };

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
+import { runAi } from "@/lib/ai/run";
 
 /** Run an internal quality review on the latest requirements document. */
 export async function runQualityReview(projectId: string) {
@@ -14,13 +15,19 @@ export async function runQualityReview(projectId: string) {
     return { ok: false as const, error: "先に要件定義書を生成してください" };
   }
   try {
-    const report = await getProvider().reviewRequirementsQuality({
-      sections: doc.contentJson.map((s) => ({
-        key: s.key,
-        heading: s.heading,
-        markdown: s.markdown,
-      })),
-    });
+    const report = await runAi(
+      user,
+      "quality_review",
+      () =>
+        getProvider().reviewRequirementsQuality({
+          sections: doc.contentJson!.map((s) => ({
+            key: s.key,
+            heading: s.heading,
+            markdown: s.markdown,
+          })),
+        }),
+      projectId,
+    );
     await db.quality.saveVersion(user.orgId, projectId, report, user.userId);
     revalidatePath(`/projects/${projectId}/quality`);
     return { ok: true as const };

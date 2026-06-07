@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getProvider } from "@/lib/ai/providers";
-import { recordAiUsage } from "@/lib/ai/usage";
+import { runAi } from "@/lib/ai/run";
 import { buildGenerationContext } from "@/lib/ai/context";
 
 const REQ_DESIGN_SECTIONS = [
@@ -19,9 +19,13 @@ export async function generateScreenDesign(projectId: string) {
   const ctx = await buildGenerationContext(user.orgId, projectId);
   if (!ctx) return { ok: false as const, error: "案件が見つかりません" };
   try {
-    const design = await getProvider().generateScreenDesign(ctx);
+    const design = await runAi(
+      user,
+      "screen_design",
+      () => getProvider().generateScreenDesign(ctx),
+      projectId,
+    );
     await db.screenDesign.saveVersion(user.orgId, projectId, design, user.userId);
-    await recordAiUsage(user, "screen_design", projectId);
     revalidatePath(`/projects/${projectId}/design`);
     revalidatePath(`/projects/${projectId}/slides`);
     return { ok: true as const };
@@ -42,10 +46,11 @@ export async function adjustScreenDesign(
     return { ok: false as const, error: "先に画面設計を生成してください" };
   }
   try {
-    const revised = await getProvider().adjustScreenDesign(
-      ctx,
-      ctx.design,
-      instruction,
+    const revised = await runAi(
+      user,
+      "screen_design_adjust",
+      () => getProvider().adjustScreenDesign(ctx, ctx.design!, instruction),
+      projectId,
     );
     await db.screenDesign.saveVersion(
       user.orgId,
@@ -53,7 +58,6 @@ export async function adjustScreenDesign(
       revised,
       user.userId,
     );
-    await recordAiUsage(user, "screen_design_adjust", projectId);
     revalidatePath(`/projects/${projectId}/design`);
     revalidatePath(`/projects/${projectId}/slides`);
     return { ok: true as const };
@@ -78,16 +82,21 @@ export async function applyDesignToRequirements(projectId: string) {
   }
   try {
     const provider = getProvider();
-    const updated = new Map<
-      string,
-      { key: string; heading: string; markdown: string }
-    >();
-    for (const key of REQ_DESIGN_SECTIONS) {
-      updated.set(
-        key,
-        await provider.regenerateSection("requirements", key, ctx),
-      );
-    }
+    const updated = await runAi(
+      user,
+      "design_to_requirements",
+      async () => {
+        const m = new Map<
+          string,
+          { key: string; heading: string; markdown: string }
+        >();
+        for (const key of REQ_DESIGN_SECTIONS) {
+          m.set(key, await provider.regenerateSection("requirements", key, ctx));
+        }
+        return m;
+      },
+      projectId,
+    );
     const sections = latest.contentJson.map((s) =>
       updated.has(s.key) ? { ...s, ...updated.get(s.key)! } : s,
     );
@@ -96,7 +105,6 @@ export async function applyDesignToRequirements(projectId: string) {
       sections,
       createdBy: user.userId,
     });
-    await recordAiUsage(user, "design_to_requirements", projectId);
     revalidatePath(`/projects/${projectId}/requirements`);
     revalidatePath(`/projects/${projectId}/slides`);
     return { ok: true as const };
