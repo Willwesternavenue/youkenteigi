@@ -67,7 +67,12 @@ export class ClaudeProvider implements AIProvider {
     const run = async (extra?: string): Promise<string> => {
       const msg = await this.client.messages.create({
         model: MODEL,
-        max_tokens: 4096,
+        // Large structured outputs (full requirements/RFP, screen design with
+        // wireframes+transitions+architecture) overflow a small cap and get
+        // truncated → invalid JSON → parse failure. 16000 is the non-streaming
+        // safe default (Sonnet 4.6 allows up to 64000); raise via streaming if
+        // even this truncates.
+        max_tokens: 16000,
         system: [
           {
             type: "text",
