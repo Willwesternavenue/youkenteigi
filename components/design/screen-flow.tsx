@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   Maximize2,
   ZoomIn,
@@ -25,6 +31,11 @@ import type { WireframeBlock } from "@/lib/ai/providers";
  */
 
 const ACCENT = "#264bf1";
+
+// zoom bounds (module-scoped so effect closures stay stable)
+const MIN_ZOOM = 0.4;
+const MAX_ZOOM = 2;
+const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
 export interface FlowScreen {
   key: string;
@@ -82,8 +93,6 @@ export function ScreenFlow({
   const SCALE = 2.3;
 
   // ---- Figma风 zoom / pan ----
-  const MIN = 0.4;
-  const MAX = 2;
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const pan = useRef<{
@@ -94,13 +103,79 @@ export function ScreenFlow({
     st: number;
   }>({ active: false, x: 0, y: 0, sl: 0, st: 0 });
 
-  const clamp = (z: number) => Math.min(MAX, Math.max(MIN, z));
-  const zoomBy = useCallback((f: number) => setZoom((z) => clamp(z * f)), []);
+  const zoomBy = useCallback(
+    (f: number) => setZoom((z) => clampZoom(z * f)),
+    [],
+  );
   const fit = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    setZoom(clamp((el.clientWidth - 24) / layout.width));
+    setZoom(clampZoom((el.clientWidth - 24) / layout.width));
   }, [layout.width]);
+
+  // ---- trackpad pinch-to-zoom (macOS) ----
+  // A pinch gesture is delivered to the browser as a wheel event with ctrlKey
+  // set (⌘/Ctrl + wheel works too). Plain two-finger scroll has no modifier and
+  // keeps panning via the container's native overflow. React's onWheel is
+  // passive, so we attach a native non-passive listener to call preventDefault
+  // (otherwise the browser zooms the whole page). Deltas are coalesced per
+  // animation frame, and we re-anchor scroll so the point under the cursor stays
+  // fixed — Figma-style zoom-to-cursor.
+  const zoomRef = useRef(1);
+  const anchor = useRef<{ cx: number; cy: number; ox: number; oy: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let raf = 0;
+    let accum = 0;
+    let clientX = 0;
+    let clientY = 0;
+    const apply = () => {
+      raf = 0;
+      const dy = accum;
+      accum = 0;
+      const old = zoomRef.current;
+      const next = clampZoom(old * Math.exp(-dy * 0.0125));
+      if (next === old) return;
+      const rect = el.getBoundingClientRect();
+      const ox = clientX - rect.left;
+      const oy = clientY - rect.top;
+      anchor.current = {
+        cx: (el.scrollLeft + ox) / old,
+        cy: (el.scrollTop + oy) / old,
+        ox,
+        oy,
+      };
+      setZoom(next);
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return; // plain scroll → pan, don't intercept
+      e.preventDefault();
+      accum += e.deltaY;
+      clientX = e.clientX;
+      clientY = e.clientY;
+      if (!raf) raf = requestAnimationFrame(apply);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  // After a zoom change, keep the cursor's content point fixed and sync the ref.
+  useLayoutEffect(() => {
+    zoomRef.current = zoom;
+    const a = anchor.current;
+    const el = scrollRef.current;
+    if (!a || !el) return;
+    el.scrollLeft = a.cx * zoom - a.ox;
+    el.scrollTop = a.cy * zoom - a.oy;
+    anchor.current = null;
+  }, [zoom]);
 
   function onPointerDown(e: React.PointerEvent) {
     // pan only when grabbing empty canvas (not a screen node)
