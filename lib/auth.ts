@@ -30,8 +30,21 @@ export interface SessionUser {
 export const ALLOWED_DOMAIN =
   process.env.ALLOWED_EMAIL_DOMAIN ?? "aidealab.com";
 
+// Individual external addresses allowed IN ADDITION to the org domain — e.g. a
+// client/partner on Gmail. Comma-separated, set via the ALLOWED_EMAILS env var:
+//   ALLOWED_EMAILS="alice@gmail.com,bob@example.jp"
+// Each such user is still provisioned as a normal org member (default: viewer),
+// so org-wide project visibility applies. Keep this list tight.
+const ALLOWED_EMAILS = new Set(
+  (process.env.ALLOWED_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+);
+
 export function isAllowedEmail(email: string): boolean {
-  return email.trim().toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`);
+  const e = email.trim().toLowerCase();
+  return e.endsWith(`@${ALLOWED_DOMAIN}`) || ALLOWED_EMAILS.has(e);
 }
 
 /**
