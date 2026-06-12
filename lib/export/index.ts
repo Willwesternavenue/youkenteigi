@@ -1,15 +1,18 @@
-import { toDocx, type ExportDoc } from "./to-docx";
-import { toPdf } from "./to-pdf";
-import { toXlsx, type EstimateExport } from "./to-xlsx";
-import { toSchedulePdf, type ScheduleExport } from "./to-schedule-pdf";
-import { toPptx } from "./to-pptx";
-import { toSlidePdf } from "./to-slide-pdf";
+import type { ExportDoc } from "./to-docx";
+import type { EstimateExport } from "./to-xlsx";
+import type { ScheduleExport } from "./to-schedule-pdf";
 import type { Slide } from "@/lib/slides/deck";
 
 /**
  * Export facade. Given a stored document's title + sections, produce a file in
  * the requested format. Markdown is assembled directly; DOCX/PDF go through the
  * shared Markdown block model.
+ *
+ * Each exporter's heavy dependency (docx / pdfmake / exceljs / pptxgenjs) is
+ * loaded via a DYNAMIC import so importing this facade never eagerly evaluates
+ * them. This matters in production: pptxgenjs ships an ESM entry that the
+ * serverless external-module loader cannot parse, so a static import would
+ * crash *document* (docx/pdf) export too — even though it never uses pptx.
  */
 
 export type ExportFormat = "md" | "docx" | "pdf";
@@ -38,25 +41,30 @@ export async function exportDocument(
         contentType: "text/markdown; charset=utf-8",
         extension: "md",
       };
-    case "docx":
+    case "docx": {
+      const { toDocx } = await import("./to-docx");
       return {
         data: await toDocx(doc),
         contentType:
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         extension: "docx",
       };
-    case "pdf":
+    }
+    case "pdf": {
+      const { toPdf } = await import("./to-pdf");
       return {
         data: await toPdf(doc),
         contentType: "application/pdf",
         extension: "pdf",
       };
+    }
   }
 }
 
 export async function exportEstimateXlsx(
   data: EstimateExport,
 ): Promise<ExportResult> {
+  const { toXlsx } = await import("./to-xlsx");
   return {
     data: await toXlsx(data),
     contentType:
@@ -68,6 +76,7 @@ export async function exportEstimateXlsx(
 export async function exportSchedulePdf(
   data: ScheduleExport,
 ): Promise<ExportResult> {
+  const { toSchedulePdf } = await import("./to-schedule-pdf");
   return {
     data: await toSchedulePdf(data),
     contentType: "application/pdf",
@@ -76,6 +85,7 @@ export async function exportSchedulePdf(
 }
 
 export async function exportSlidesPptx(slides: Slide[]): Promise<ExportResult> {
+  const { toPptx } = await import("./to-pptx");
   return {
     data: await toPptx(slides),
     contentType:
@@ -85,6 +95,7 @@ export async function exportSlidesPptx(slides: Slide[]): Promise<ExportResult> {
 }
 
 export async function exportSlidesPdf(slides: Slide[]): Promise<ExportResult> {
+  const { toSlidePdf } = await import("./to-slide-pdf");
   return {
     data: await toSlidePdf(slides),
     contentType: "application/pdf",
