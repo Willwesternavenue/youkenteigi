@@ -13,7 +13,10 @@ import {
   ZoomOut,
   Maximize,
   RotateCcw,
+  FileDown,
+  ImageDown,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -203,8 +206,82 @@ export function ScreenFlow({
     scrollRef.current?.releasePointerCapture(e.pointerId);
   }
 
+  // ---- export: whole flow → PDF, individual screen → PNG (client-side) ----
+  // The diagram is HTML/SVG, so we capture the rendered DOM with html-to-image
+  // (faithful to what's on screen) rather than re-drawing it server-side.
+  const contentRef = useRef<HTMLDivElement>(null);
+  const nodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const triggerDownload = (dataUrl: string, filename: string) => {
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = filename;
+    a.click();
+  };
+
+  const exportPdf = useCallback(async () => {
+    const node = contentRef.current;
+    if (!node || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const { default: JsPDF } = await import("jspdf");
+      const w = Math.ceil(layout.width);
+      const h = Math.ceil(layout.height);
+      // Capture at natural size, ignoring the live zoom transform; white page.
+      const dataUrl = await toPng(node, {
+        width: w,
+        height: h,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+        style: { transform: "none", transformOrigin: "top left" },
+      });
+      const pdf = new JsPDF({
+        orientation: w >= h ? "landscape" : "portrait",
+        unit: "pt",
+        format: [w, h],
+      });
+      pdf.addImage(dataUrl, "PNG", 0, 0, w, h);
+      pdf.save("画面遷移図.pdf");
+    } catch (e) {
+      toast.error(`PDF出力に失敗しました: ${(e as Error).message}`);
+    } finally {
+      setPdfBusy(false);
+    }
+  }, [layout.width, layout.height, pdfBusy]);
+
+  const exportNodePng = useCallback(async (key: string, name: string) => {
+    const node = nodeRefs.current[key];
+    if (!node) return;
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(node, {
+        pixelRatio: 3,
+        backgroundColor: "#ffffff",
+      });
+      triggerDownload(dataUrl, `${name || key}.png`);
+    } catch (e) {
+      toast.error(`PNG出力に失敗しました: ${(e as Error).message}`);
+    }
+  }, []);
+
   return (
     <div className="relative">
+      {/* export toolbar */}
+      <div className="absolute left-2 top-2 z-20 flex items-center rounded-lg border bg-white/95 p-0.5 shadow-sm backdrop-blur">
+        <button
+          type="button"
+          onClick={exportPdf}
+          disabled={pdfBusy}
+          title="画面遷移図 全体をPDFで出力"
+          className="flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-muted disabled:opacity-50"
+        >
+          <FileDown className="size-4" />
+          {pdfBusy ? "出力中…" : "PDF"}
+        </button>
+      </div>
+
       {/* zoom toolbar */}
       <div className="absolute right-2 top-2 z-20 flex items-center gap-0.5 rounded-lg border bg-white/95 p-0.5 shadow-sm backdrop-blur">
         <button
@@ -271,6 +348,7 @@ export function ScreenFlow({
           }}
         >
           <div
+            ref={contentRef}
             className="relative origin-top-left"
             style={{
               width: layout.width,
@@ -339,7 +417,7 @@ export function ScreenFlow({
             <div
               key={n.key}
               data-flow-node
-              className="absolute"
+              className="group absolute"
               style={{ left: n.x, top: n.y, width: n.w }}
             >
               {n.isStart && (
@@ -361,18 +439,28 @@ export function ScreenFlow({
                   })
                 }
                 title={`${n.name} を拡大表示`}
-                className="group relative block w-full rounded-lg text-left ring-1 ring-slate-200 transition-all hover:ring-2 hover:ring-[#264bf1]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#264bf1]"
+                className="relative block w-full rounded-lg text-left ring-1 ring-slate-200 transition-all hover:ring-2 hover:ring-[#264bf1]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#264bf1]"
               >
                 <span className="absolute right-1.5 top-1.5 z-10 hidden rounded-md bg-white/90 p-1 text-slate-500 shadow-sm ring-1 ring-slate-200 group-hover:block">
                   <Maximize2 className="size-3" />
                 </span>
-                <WireframeView
-                  name={n.name}
-                  role={n.role}
-                  blocks={
-                    wf.length ? wf : [{ kind: "text", label: "（UI未設計）" }]
-                  }
-                />
+                <div ref={(el) => { nodeRefs.current[n.key] = el; }}>
+                  <WireframeView
+                    name={n.name}
+                    role={n.role}
+                    blocks={
+                      wf.length ? wf : [{ kind: "text", label: "（UI未設計）" }]
+                    }
+                  />
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => exportNodePng(n.key, n.name)}
+                title={`${n.name} をPNGで保存`}
+                className="absolute left-1.5 top-1.5 z-10 hidden rounded-md bg-white/90 p-1 text-slate-500 shadow-sm ring-1 ring-slate-200 hover:text-[#264bf1] group-hover:block"
+              >
+                <ImageDown className="size-3" />
               </button>
             </div>
           );
