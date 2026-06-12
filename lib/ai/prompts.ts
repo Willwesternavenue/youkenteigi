@@ -216,6 +216,12 @@ export const docSectionSchema = z.object({
   markdown: z.string(),
 });
 
+// A batch of sections (no title) — used to generate a long document in small
+// concurrent chunks instead of one slow call.
+export const docSectionsSchema = z.object({
+  sections: z.array(docSectionSchema),
+});
+
 // ---------- estimate (spec §11) ----------
 
 export const DEFAULT_UNIT_PRICE = 20000; // 人日単価

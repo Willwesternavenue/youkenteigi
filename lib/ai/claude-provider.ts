@@ -22,11 +22,12 @@ import type {
 import {
   BASE_RULES,
   docSectionSchema,
+  docSectionsSchema,
   docTitle,
   generatedDesignSchema,
   designSkeletonSchema,
   wireframeSchema,
-  generatedDocSchema,
+  type SectionDef,
   generatedEstimateSchema,
   generatedScheduleSchema,
   openQuestionSetSchema,
@@ -201,25 +202,52 @@ JSON形式: [{"category": string, "questions": string[]}]`;
     ctx: GenerationContext,
   ): Promise<GeneratedDoc> {
     const defs = sectionsFor(type);
-    const sectionList = defs
-      .map((d) => `- ${d.key}: ${d.heading} — ${d.guide}`)
-      .join("\n");
     const label = type === "rfp" ? "RFP" : "要件定義書";
     const tpl = type === "rfp" ? ctx.templates?.rfp : ctx.templates?.requirements;
     const tplBlock = tpl
       ? `\n\n## 標準テンプレート（章立て・標準文言。これをベースに、案件情報で具体化すること）\n${tpl}\n`
       : "";
-    const prompt = `次の情報をもとに、${label}を作成してください。各セクションをMarkdownで記述します。
+    // Shared context lives in a cached system block so the batch calls below
+    // reuse it cheaply (prompt caching).
+    const context = `${serializeContext(ctx)}${tplBlock}`;
 
-${serializeContext(ctx)}${tplBlock}
+    // Generate the document in small concurrent batches. A single call for all
+    // 18–27 sections runs 4–5+ minutes and overruns the function timeout (503).
+    // Batches keep each response small/fast; bounded concurrency keeps total
+    // wall-time well under the limit. Each section still sees the full context.
+    const BATCH = 3;
+    const groups: SectionDef[][] = [];
+    for (let i = 0; i < defs.length; i += BATCH) groups.push(defs.slice(i, i + BATCH));
 
-必要なセクション（この順序・このkeyで全て含めること）:
+    const batches = await mapLimit(groups, 5, async (group) => {
+      const sectionList = group
+        .map((d) => `- ${d.key}: ${d.heading} — ${d.guide}`)
+        .join("\n");
+      const prompt = `次の情報をもとに、${label}の指定されたセクションだけを作成してください。各セクションをMarkdownで、案件情報に即して具体的に記述します。
+
+作成するセクション（この順序・このkeyで、過不足なく全て）:
 ${sectionList}
 
-JSON形式: {"title": string, "sections": [{"key": string, "heading": string, "markdown": string}]}`;
-    const doc = await this.complete(prompt, generatedDocSchema);
-    if (!doc.title) doc.title = docTitle(type, ctx.project);
-    return doc;
+JSON形式: {"sections": [{"key": string, "heading": string, "markdown": string}]}`;
+      const r = await this.complete(prompt, docSectionsSchema, context);
+      return r.sections;
+    });
+
+    // Reassemble in canonical order; guarantee every section exists with the
+    // right heading (fall back to a placeholder the user can regenerate).
+    const byKey = new Map<string, DocSection>();
+    for (const s of batches.flat()) byKey.set(s.key, s);
+    const sections: DocSection[] = defs.map((d) => {
+      const got = byKey.get(d.key);
+      return got
+        ? { key: d.key, heading: d.heading, markdown: got.markdown }
+        : {
+            key: d.key,
+            heading: d.heading,
+            markdown: "（このセクションは生成されませんでした。「再生成」で作成してください。）",
+          };
+    });
+    return { title: docTitle(type, ctx.project), sections };
   }
 
   async generateRfp(ctx: GenerationContext): Promise<GeneratedDoc> {
