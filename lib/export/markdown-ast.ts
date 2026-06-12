@@ -20,7 +20,8 @@ export type Block =
   | { type: "paragraph"; inlines: Inline[] }
   | { type: "list"; ordered: boolean; items: Inline[][] }
   | { type: "blockquote"; inlines: Inline[] }
-  | { type: "code"; text: string };
+  | { type: "code"; text: string }
+  | { type: "table"; header: Inline[][]; rows: Inline[][][] };
 
 function inlinesFrom(tokens: Token[] | undefined, fallback: string): Inline[] {
   if (!tokens || tokens.length === 0) {
@@ -104,6 +105,15 @@ export function parseBlocks(markdown: string): Block[] {
       }
       case "code": {
         blocks.push({ type: "code", text: (tok as Tokens.Code).text });
+        break;
+      }
+      case "table": {
+        const t = tok as Tokens.Table;
+        blocks.push({
+          type: "table",
+          header: t.header.map((c) => inlinesFrom(c.tokens, c.text)),
+          rows: t.rows.map((row) => row.map((c) => inlinesFrom(c.tokens, c.text))),
+        });
         break;
       }
       default:

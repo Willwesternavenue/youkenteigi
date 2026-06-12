@@ -100,7 +100,49 @@ function blockToContent(block: Block): Content | Content[] {
         fontSize: 9,
         color: "#334155",
       };
+    case "table": {
+      const header = block.header.map((cell) => ({
+        ...inlineRuns(cell),
+        bold: true,
+        fillColor: "#eef2f7",
+      }));
+      const body = block.rows.map((row) =>
+        row.map((cell) => ({ ...inlineRuns(cell) })),
+      );
+      const cols = Math.max(1, block.header.length);
+      return {
+        table: {
+          headerRows: 1,
+          widths: Array(cols).fill("*"),
+          body: [header, ...body],
+        },
+        layout: {
+          hLineWidth: () => 0.5,
+          vLineWidth: () => 0.5,
+          hLineColor: () => "#cbd5e1",
+          vLineColor: () => "#cbd5e1",
+          paddingTop: () => 3,
+          paddingBottom: () => 3,
+          paddingLeft: () => 5,
+          paddingRight: () => 5,
+        },
+        margin: [0, 4, 0, 10],
+      };
+    }
   }
+}
+
+/** Drop a leading markdown heading that just repeats the section heading. */
+function sectionBlocks(heading: string, markdown: string): Block[] {
+  const blocks = parseBlocks(markdown);
+  const first = blocks[0];
+  if (
+    first?.type === "heading" &&
+    first.inlines.map((i) => i.text).join("").trim() === heading.trim()
+  ) {
+    return blocks.slice(1);
+  }
+  return blocks;
 }
 
 export async function toPdf(doc: ExportDoc): Promise<Buffer> {
@@ -110,7 +152,7 @@ export async function toPdf(doc: ExportDoc): Promise<Buffer> {
 
   for (const section of doc.sections) {
     content.push({ text: section.heading, style: "h2", margin: [0, 12, 0, 6] });
-    for (const block of parseBlocks(section.markdown)) {
+    for (const block of sectionBlocks(section.heading, section.markdown)) {
       const c = blockToContent(block);
       if (Array.isArray(c)) content.push(...c);
       else content.push(c);
