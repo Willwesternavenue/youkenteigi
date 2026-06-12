@@ -17,24 +17,34 @@ import type { ExportDoc } from "./to-docx";
  */
 
 const FONT_KEY = "NotoSansJP-Regular.ttf";
-const FONT_PATH = path.join(
-  process.cwd(),
-  "lib",
-  "export",
-  "fonts",
-  FONT_KEY,
-);
+
+// The font is traced into the serverless bundle, but its location at runtime can
+// differ between local (process.cwd() === project root) and Vercel. Try the
+// likely anchors (cwd + the compiled module dir) and report what we tried so a
+// failure is actionable rather than opaque.
+function resolveFontPath(): string {
+  const rel = ["lib", "export", "fonts", FONT_KEY];
+  const candidates: string[] = [path.join(process.cwd(), ...rel)];
+  // __dirname is defined in the Node server bundle; guard so a missing binding
+  // never throws a ReferenceError.
+  if (typeof __dirname !== "undefined") {
+    candidates.push(path.join(__dirname, "fonts", FONT_KEY));
+    candidates.push(path.join(__dirname, ...rel));
+    candidates.push(path.join(__dirname, "..", "fonts", FONT_KEY));
+  }
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  throw new Error(
+    `日本語フォントが見つかりません。試したパス: ${candidates.join(" | ")}`,
+  );
+}
 
 let printer: PdfPrinter | null = null;
 
 function getPrinter(): PdfPrinter {
   if (printer) return printer;
-  if (!fs.existsSync(FONT_PATH)) {
-    throw new Error(
-      `日本語フォントが見つかりません (${FONT_PATH})。npm run setup を実行してください。`,
-    );
-  }
-  vfs.writeFileSync(FONT_KEY, fs.readFileSync(FONT_PATH));
+  vfs.writeFileSync(FONT_KEY, fs.readFileSync(resolveFontPath()));
   printer = new PdfPrinter(
     {
       NotoJP: {

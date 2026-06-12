@@ -22,19 +22,35 @@ export async function GET(
   const doc = await db.documents.getById(user.orgId, documentId);
   if (!doc) return new Response("not found", { status: 404 });
 
-  const result = await exportDocument(
-    { title: doc.title, sections: doc.contentJson ?? [] },
-    format,
-  );
+  try {
+    const result = await exportDocument(
+      { title: doc.title, sections: doc.contentJson ?? [] },
+      format,
+    );
 
-  const filename = `${doc.title}_v${doc.version}.${result.extension}`;
-  const encoded = encodeURIComponent(filename);
+    const filename = `${doc.title}_v${doc.version}.${result.extension}`;
+    const encoded = encodeURIComponent(filename);
 
-  return new Response(new Uint8Array(result.data), {
-    headers: {
-      "Content-Type": result.contentType,
-      "Content-Disposition": `attachment; filename="document.${result.extension}"; filename*=UTF-8''${encoded}`,
-      "Content-Length": String(result.data.length),
-    },
-  });
+    return new Response(new Uint8Array(result.data), {
+      headers: {
+        "Content-Type": result.contentType,
+        "Content-Disposition": `attachment; filename="document.${result.extension}"; filename*=UTF-8''${encoded}`,
+        "Content-Length": String(result.data.length),
+      },
+    });
+  } catch (e) {
+    // Surface the real cause instead of letting Next return an opaque 500 that
+    // the browser's <a download> saves as a broken file.
+    const err = e as Error;
+    console.error("[export] failed", {
+      documentId,
+      format,
+      message: err.message,
+      stack: err.stack,
+    });
+    return new Response(`エクスポートに失敗しました: ${err.message}`, {
+      status: 500,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
 }
