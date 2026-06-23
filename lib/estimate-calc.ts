@@ -133,3 +133,34 @@ export function planForTotal(total: number): string {
   }
   return "Enterprise";
 }
+
+/**
+ * Parse a target amount (in yen) and its intent from a natural-language
+ * instruction like「900万円にして」「700万円以内に収めて」「1,200万以上で」.
+ * `amount` is yen; `mode` is how to apply it against the current grand total:
+ *  - "set": match exactly        (にして / に / bare)
+ *  - "max": only reduce to it     (以内 / 以下 / まで / 抑えて / 収めて)
+ *  - "min": only raise to it      (以上 / 最低 / 超えて)
+ * Returns null when no amount is present (e.g.「テストを厚めに」).
+ */
+export interface YenTarget {
+  amount: number;
+  mode: "set" | "max" | "min";
+}
+
+export function parseTargetYen(text: string): YenTarget | null {
+  let amount: number | null = null;
+  const man = text.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*万/);
+  if (man) {
+    amount = Math.round(parseFloat(man[1].replace(/,/g, "")) * 10_000);
+  } else {
+    const yen = text.match(/([0-9][0-9,]{2,})\s*円/);
+    if (yen) amount = parseInt(yen[1].replace(/,/g, ""), 10);
+  }
+  if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
+
+  let mode: YenTarget["mode"] = "set";
+  if (/以内|以下|まで|未満|抑え|収め|圧縮|削減|減ら/.test(text)) mode = "max";
+  else if (/以上|最低|超え|増やし|上げ/.test(text)) mode = "min";
+  return { amount, mode };
+}

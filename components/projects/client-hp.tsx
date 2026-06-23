@@ -58,7 +58,7 @@ export function ClientNameRow({
               placeholder="example.co.jp"
               className="h-7 w-44"
               onKeyDown={(e) => {
-                if (e.key === "Enter") save();
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) save();
                 if (e.key === "Escape") {
                   setValue(domain ?? "");
                   setEditing(false);

@@ -56,7 +56,7 @@ export function OwnerRow({
               className="h-7 w-40"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === "Enter") save(val.trim());
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) save(val.trim());
                 if (e.key === "Escape") {
                   setVal(value ?? "");
                   setEditing(false);

@@ -7,6 +7,49 @@ import { getProvider, type GeneratedEstimate } from "@/lib/ai/providers";
 import { runAi } from "@/lib/ai/run";
 import { buildGenerationContext } from "@/lib/ai/context";
 import { DEFAULT_TAX_RATE } from "@/lib/ai/prompts";
+import { computeTotals, parseTargetYen } from "@/lib/estimate-calc";
+
+/**
+ * If the instruction names a target amount (e.g.「900万円にして」), deterministically
+ * scale every line's hours so the computed grand total (税込) hits that target —
+ * LLMs are unreliable at matching a precise budget, so we don't trust the model
+ * for the number. Honors 以内/以上 (cap/floor) vs にして (set exactly).
+ * Mutates `gen.lines` in place. No-op when no amount is present.
+ */
+function applyTargetTotal(
+  gen: GeneratedEstimate,
+  instruction: string,
+  rateByRole: Record<string, number>,
+) {
+  const tgt = parseTargetYen(instruction);
+  if (!tgt) return;
+  const priceOf = (role?: string) =>
+    (role && rateByRole[role]) || gen.defaultUnitPrice;
+  const items = gen.lines.map((l) => ({
+    taskName: l.taskName,
+    hoursDesign: l.design,
+    hoursImpl: l.implementation,
+    hoursTest: l.test,
+    hoursCoord: l.coordination,
+    hoursMgmt: l.management,
+    unitPrice: priceOf(l.role),
+  }));
+  const current = computeTotals(items, gen.bufferRate, DEFAULT_TAX_RATE).total;
+  if (current <= 0) return;
+  let f = tgt.amount / current;
+  if (tgt.mode === "max") f = Math.min(1, f); // 以内: 下げるだけ
+  if (tgt.mode === "min") f = Math.max(1, f); // 以上: 上げるだけ
+  if (Math.abs(f - 1) < 0.005) return; // already within 0.5%
+  const s = (n: number) => Math.max(0, Math.round(n * f * 10) / 10);
+  gen.lines = gen.lines.map((l) => ({
+    ...l,
+    design: s(l.design),
+    implementation: s(l.implementation),
+    test: s(l.test),
+    coordination: s(l.coordination),
+    management: s(l.management),
+  }));
+}
 
 export interface EstimateItemEdit {
   category?: string;
@@ -118,6 +161,8 @@ export async function adjustEstimate(projectId: string, instruction: string) {
       projectId,
     );
     const rateByRole = await db.rateCards.effectiveByRole(user.orgId);
+    // Guarantee a named budget is hit exactly, regardless of the AI provider.
+    applyTargetTotal(gen, instruction, rateByRole);
     await persist(user.orgId, projectId, gen, user.userId, rateByRole);
     revalidatePath(`/projects/${projectId}/estimate`);
     return { ok: true as const };

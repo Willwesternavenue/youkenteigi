@@ -302,7 +302,16 @@ export function AssistantDock() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={`${cfg.label}への指示…`}
-              onKeyDown={(e) => e.key === "Enter" && !pending && send()}
+              onKeyDown={(e) => {
+                // Don't send while the IME is composing (Enter just confirms
+                // the kana→kanji conversion). isComposing covers all browsers;
+                // keyCode 229 is the Safari/older fallback.
+                if (e.key !== "Enter") return;
+                if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                if (pending) return;
+                e.preventDefault();
+                send();
+              }}
               disabled={pending}
             />
             <Button
