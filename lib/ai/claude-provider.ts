@@ -296,7 +296,9 @@ JSON形式: {"estimateName": string, "defaultUnitPrice": number, "bufferRate": n
     current: GeneratedEstimate,
     instruction: string,
   ): Promise<GeneratedEstimate> {
-    const prompt = `次の現行見積を、指示に従って調整してください。大項目・中項目・小項目の構成は保ちつつ、各activityの時間を見直します。
+    const prompt = `次の現行見積を、指示に従って調整してください。
+- 通常の調整では、大項目・中項目・小項目の構成は概ね保ちつつ各activityの時間を見直します。
+- ただし指示がスコープの大きな増減（予算の大幅な増額/減額など）を求める場合は、単なる工数の一律増減ではなく、工程（大項目/中項目/小項目）の追加・削除・再配分まで行い、現実的な見積に作り直してください（増額なら画面・機能・テスト/品質・基盤/インフラ・PM工数などを妥当に追加、減額なら優先度の低い工程を削減・統合）。
 指示: ${instruction}
 
 現行見積(JSON):
