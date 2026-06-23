@@ -149,12 +149,18 @@ export interface YenTarget {
 }
 
 export function parseTargetYen(text: string): YenTarget | null {
+  // Normalize full-width digits/comma/period (Japanese IME emits ９００ , ．)
+  // to half-width so the numeric patterns below match.
+  const t = text
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[，､]/g, ",")
+    .replace(/．/g, ".");
   let amount: number | null = null;
-  const man = text.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*万/);
+  const man = t.match(/([0-9][0-9,]*(?:\.[0-9]+)?)\s*万/);
   if (man) {
     amount = Math.round(parseFloat(man[1].replace(/,/g, "")) * 10_000);
   } else {
-    const yen = text.match(/([0-9][0-9,]{2,})\s*円/);
+    const yen = t.match(/([0-9][0-9,]{2,})\s*円/);
     if (yen) amount = parseInt(yen[1].replace(/,/g, ""), 10);
   }
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return null;
