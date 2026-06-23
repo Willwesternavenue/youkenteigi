@@ -1,4 +1,4 @@
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { database } from "@/db/client";
 import {
   organizations,
@@ -1765,7 +1765,14 @@ const auditRepo = {
   },
 };
 
+/** Minimal real DB round-trip — used by the keep-alive cron to count as
+ *  Supabase project activity (free tier pauses after ~7 days of inactivity). */
+async function ping(): Promise<void> {
+  await database.execute(sql`select 1`);
+}
+
 export const db = {
+  ping,
   orgs,
   profiles: profilesRepo,
   projects: projectsRepo,
