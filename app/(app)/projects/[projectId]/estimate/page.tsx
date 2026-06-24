@@ -4,6 +4,7 @@ import {
   EstimateEditor,
   type EstimateData,
 } from "@/components/estimates/estimate-editor";
+import { ConsistencyNotice } from "@/components/estimates/consistency-notice";
 
 // AI生成は最長~120秒。Server Actionのタイムアウト既定値をページ単位で
 // 引き上げる（Vercel Pro: 最大300秒）。
@@ -17,7 +18,20 @@ export default async function EstimatePage({
 }) {
   const { projectId } = await params;
   const user = await requireUser();
-  const latest = await db.estimates.getLatest(user.orgId, projectId);
+  const [latest, design, consistency] = await Promise.all([
+    db.estimates.getLatest(user.orgId, projectId),
+    db.screenDesign.getLatest(user.orgId, projectId),
+    db.consistency.getLatest(user.orgId, projectId),
+  ]);
+
+  // Estimate adjustments don't touch 画面設計/要件定義, so flag when the estimate
+  // is newer than the last consistency check (and a design exists to drift from).
+  // Both timestamps come from the same `ts()` column, so a string compare is a
+  // safe ordering (and avoids new Date() choking on the `+00` offset).
+  const showNotice =
+    !!latest &&
+    !!design &&
+    (latest.estimate.createdAt ?? "") > (consistency?.createdAt ?? "");
 
   const estimate: EstimateData | null = latest
     ? {
@@ -45,10 +59,13 @@ export default async function EstimatePage({
     : null;
 
   return (
-    <EstimateEditor
-      key={latest ? latest.estimate.id : "empty"}
-      projectId={projectId}
-      estimate={estimate}
-    />
+    <div className="space-y-4">
+      {showNotice && <ConsistencyNotice projectId={projectId} />}
+      <EstimateEditor
+        key={latest ? latest.estimate.id : "empty"}
+        projectId={projectId}
+        estimate={estimate}
+      />
+    </div>
   );
 }
