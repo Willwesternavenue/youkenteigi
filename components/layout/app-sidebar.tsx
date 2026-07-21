@@ -8,6 +8,7 @@ import {
   FilePlus2,
   ShieldCheck,
   BookOpen,
+  FileSignature,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIdeaLabLogo } from "@/components/brand/logo";
@@ -18,6 +19,7 @@ const NAV = [
   { href: "/dashboard", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/projects", label: "案件一覧", icon: FolderKanban },
   { href: "/projects/new", label: "新規案件", icon: FilePlus2 },
+  { href: "/contract", label: "契約書（単体）", icon: FileSignature },
   { href: "/guide", label: "使い方ガイド", icon: BookOpen },
 ];
 
