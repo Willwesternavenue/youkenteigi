@@ -43,7 +43,12 @@ export function suggestTargets(values: ContractValues): string[] {
   return SUGGESTABLE_FIELDS.filter((id) => v(values, id) === "");
 }
 
-/** AI の提案を安全側に絞る（対象外の項目・入力済みの項目・空の提案は捨てる）。 */
+// 「根拠情報なし。〜記入すること」のような、差し込み値ではない返答
+const NON_ANSWER = /記入(すること|してください|する必要)|根拠(情報)?(は|が)?(なし|無し|ありません|不足)|提案(を)?見送/;
+// 値の末尾に付いた注記（契約書に入らないよう reason へ移す）
+const TRAILING_NOTE = /[（(](一般的な例|推測|例|参考)[）)]\s*$/;
+
+/** AI の提案を安全側に絞る（対象外・入力済み・空・差し込み値でない返答は捨てる）。 */
 export function filterSuggestions(
   suggestions: ContractSuggestion[],
   values: ContractValues,
@@ -51,15 +56,17 @@ export function filterSuggestions(
   const seen = new Set<string>();
   const out: ContractSuggestion[] = [];
   for (const s of suggestions) {
-    const value = s.value.trim();
+    let value = s.value.trim();
+    let reason = s.reason.trim();
+    const note = TRAILING_NOTE.exec(value);
+    if (note) {
+      value = value.slice(0, note.index).trim();
+      reason = reason ? `${reason}（${note[1]}）` : note[1];
+    }
     if (!SUGGESTABLE.has(s.field) || v(values, s.field) !== "" || !value) continue;
-    if (seen.has(s.field)) continue;
+    if (NON_ANSWER.test(value) || seen.has(s.field)) continue;
     seen.add(s.field);
-    out.push({
-      field: s.field,
-      value: value.slice(0, MAX_SUGGESTION_LENGTH),
-      reason: s.reason.trim(),
-    });
+    out.push({ field: s.field, value: value.slice(0, MAX_SUGGESTION_LENGTH), reason });
   }
   return out;
 }
