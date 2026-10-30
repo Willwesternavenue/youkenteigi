@@ -236,7 +236,7 @@ export async function reviewContract(
             developmentForm: project?.developmentForm,
             estimateTotal,
           }),
-          ...filterIssues(raw.issues),
+          ...filterIssues(raw.issues, current),
         ],
       },
     };

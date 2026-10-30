@@ -64,11 +64,22 @@ export function filterSuggestions(
   return out;
 }
 
-export function filterIssues(issues: ContractIssue[]): ContractIssue[] {
-  return issues.slice(0, MAX_ISSUES).map((i) => ({
-    ...i,
-    field: i.field && KNOWN_FIELDS.has(i.field) ? i.field : undefined,
-  }));
+/**
+ * AI の指摘を「実在する食い違い」に絞る。空欄の項目を指す指摘は、値どうしの
+ * 食い違いではなく仮定の注意喚起なので捨てる（現状の原文には問題がない前提で、
+ * 齟齬がある時だけ出す方針）。
+ */
+export function filterIssues(
+  issues: ContractIssue[],
+  values: ContractValues,
+): ContractIssue[] {
+  return issues
+    .map((i) => ({
+      ...i,
+      field: i.field && KNOWN_FIELDS.has(i.field) ? i.field : undefined,
+    }))
+    .filter((i) => !i.field || v(values, i.field) !== "")
+    .slice(0, MAX_ISSUES);
 }
 
 // ---------- 決定論的チェック（AI を使わず常に正確な食い違い） ----------
