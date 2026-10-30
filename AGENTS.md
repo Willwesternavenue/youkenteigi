@@ -90,6 +90,7 @@ DB は Supabase Postgres（`DATABASE_URL` 必須）。認証は **Supabase Auth 
 - 案件プリフィル `prefillFromProject` は決定論的（委託者名・開発対象・作業期間・責任者・委託料=最新見積の税込合計）。「案件情報から入力」は**空欄だけ**埋める。
 - Google Docs 出力は `lib/contract/google-docs.ts`（ブラウザ側 GIS OAuth、元 google-docs.js と同じ書式リクエスト）。OAuth の承認済み生成元は kakerukun.vercel.app と localhost:3000。
 - ルート: `/contract`（一覧・単体作成）、`/contract/[contractId]`、案件タブ `/projects/[projectId]/contract`。
+- **AIレビュー・提案**（`reviewContract`、Mock+Claude）: 提案は記述系の空欄だけ（`lib/contract/review.ts` の `SUGGESTABLE_FIELDS`）。委託者名・日付・委託料・責任者・本文は対象外。指摘は「現に入力されている値」の食い違いだけで、仮定の注意喚起や本文の改善提案は出さない（現状の原文に問題がない前提）。**プロンプトに頼らず、サーバ側の `filterSuggestions` / `filterIssues` で必ず絞る**（対象外・入力済み・「根拠情報なし」等の返答・空欄を指す指摘を捨て、値末尾の注記は reason へ移す）。日付の前後・委託料×見積・請負案件×準委任ひな形は `deterministicIssues` で AI と別に常にチェック。要約は絞り込み後の件数から作る。提案は「反映」を押すまで入力されない。
 
 ## 次のスライス候補（仕様の未実装分）
 
