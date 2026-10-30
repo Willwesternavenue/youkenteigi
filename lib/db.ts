@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { database } from "@/db/client";
 import {
   organizations,
@@ -544,6 +544,7 @@ const contractsRepo = {
       .where(
         and(
           eq(contracts.organizationId, orgId),
+          isNull(contracts.deletedAt),
           opts.projectId ? eq(contracts.projectId, opts.projectId) : undefined,
         ),
       )
@@ -554,7 +555,13 @@ const contractsRepo = {
       .select(contractSummaryCols)
       .from(contracts)
       .leftJoin(projects, eq(contracts.projectId, projects.id))
-      .where(and(eq(contracts.organizationId, orgId), eq(contracts.id, contractId)));
+      .where(
+        and(
+          eq(contracts.organizationId, orgId),
+          eq(contracts.id, contractId),
+          isNull(contracts.deletedAt),
+        ),
+      );
     if (!row) return null;
     const latest = await database.query.contractVersions.findFirst({
       where: and(
@@ -605,7 +612,11 @@ const contractsRepo = {
   ): Promise<number | null> {
     return database.transaction(async (tx) => {
       const current = await tx.query.contracts.findFirst({
-        where: and(eq(contracts.organizationId, orgId), eq(contracts.id, contractId)),
+        where: and(
+          eq(contracts.organizationId, orgId),
+          eq(contracts.id, contractId),
+          isNull(contracts.deletedAt),
+        ),
       });
       if (!current) return null;
       const version = current.latestVersion + 1;
@@ -629,6 +640,35 @@ const contractsRepo = {
         .where(and(eq(contracts.organizationId, orgId), eq(contracts.id, contractId)));
       return version;
     });
+  },
+  /** Logical delete: hides it from lists; versions stay and it can be restored. */
+  async softDelete(
+    orgId: string,
+    contractId: string,
+  ): Promise<{ projectId: string | null } | null> {
+    const [row] = await database
+      .update(contracts)
+      .set({ deletedAt: new Date().toISOString() })
+      .where(
+        and(
+          eq(contracts.organizationId, orgId),
+          eq(contracts.id, contractId),
+          isNull(contracts.deletedAt),
+        ),
+      )
+      .returning({ projectId: contracts.projectId });
+    return row ?? null;
+  },
+  async restore(
+    orgId: string,
+    contractId: string,
+  ): Promise<{ projectId: string | null } | null> {
+    const [row] = await database
+      .update(contracts)
+      .set({ deletedAt: null })
+      .where(and(eq(contracts.organizationId, orgId), eq(contracts.id, contractId)))
+      .returning({ projectId: contracts.projectId });
+    return row ?? null;
   },
 };
 

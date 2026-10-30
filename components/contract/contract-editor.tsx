@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Download, FileOutput, Save, Wand2 } from "lucide-react";
+import { Download, FileOutput, Save, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +20,12 @@ import {
 } from "@/lib/contract/render";
 import type { ContractField } from "@/lib/contract/template";
 import { createGoogleDoc, preloadGoogleDocs } from "@/lib/contract/google-docs";
-import { getContractPrefill, saveContract } from "@/app/_actions/contracts";
+import {
+  deleteContract,
+  getContractPrefill,
+  restoreContract,
+  saveContract,
+} from "@/app/_actions/contracts";
 import { ContractDiffLegend, ContractDocument } from "./contract-document";
 
 const DATE_FIELDS = ["contract_year", "contract_month", "contract_day"];
@@ -57,6 +63,7 @@ export function ContractEditor({
   initialVersion: number;
   canEdit: boolean;
 }) {
+  const router = useRouter();
   const [values, setValues] = useState<ContractValues>(initialValues);
   const [saved, setSaved] = useState<ContractValues>(initialValues);
   const [version, setVersion] = useState(initialVersion);
@@ -108,6 +115,37 @@ export function ContractEditor({
       setValues(next);
       toast.success(`案件情報から ${filledKeys.length} 項目を入力しました（未保存）`);
     });
+  }
+
+  function remove() {
+    const message = dirty
+      ? "この契約書を削除しますか？（未保存の変更も破棄されます）"
+      : "この契約書を削除しますか？";
+    if (!confirm(message)) return;
+    startTransition(async () => {
+      const res = await deleteContract(contractId);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      // 単体ページなら一覧へ、案件タブなら同じタブを再表示（次の契約書か空の状態）
+      if (showProjectLink) router.push("/contract");
+      else router.refresh();
+      toast.success("契約書を削除しました", {
+        action: { label: "元に戻す", onClick: () => undoRemove() },
+      });
+    });
+  }
+
+  async function undoRemove() {
+    const res = await restoreContract(contractId);
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success("削除を取り消しました");
+    if (showProjectLink) router.push(`/contract/${contractId}`);
+    else router.refresh();
   }
 
   function downloadText() {
@@ -181,6 +219,12 @@ export function ContractEditor({
             <Button onClick={save} disabled={!dirty || pending}>
               <Save className="size-4" />
               保存
+            </Button>
+          )}
+          {canEdit && (
+            <Button variant="destructive" onClick={remove} disabled={pending}>
+              <Trash2 className="size-4" />
+              削除
             </Button>
           )}
         </div>

@@ -121,3 +121,39 @@ export async function getContractPrefill(contractId: string) {
   if (!values) return { ok: false as const, error: "案件が見つかりません" };
   return { ok: true as const, values };
 }
+
+/** 論理削除（一覧から隠す。版の履歴は残り、restoreContract で戻せる）。 */
+export async function deleteContract(contractId: string) {
+  const user = await requireUser();
+  requireRole(user, "document.edit");
+  const row = await db.contracts.softDelete(user.orgId, contractId);
+  if (!row) return { ok: false as const, error: "契約書が見つかりません" };
+  await db.audit.log({
+    orgId: user.orgId,
+    userId: user.userId,
+    projectId: row.projectId,
+    action: "contract.delete",
+    targetType: "contract",
+    targetId: contractId,
+  });
+  revalidate(row.projectId, contractId);
+  return { ok: true as const };
+}
+
+/** 削除の取り消し（トーストの「元に戻す」から呼ぶ）。 */
+export async function restoreContract(contractId: string) {
+  const user = await requireUser();
+  requireRole(user, "document.edit");
+  const row = await db.contracts.restore(user.orgId, contractId);
+  if (!row) return { ok: false as const, error: "契約書が見つかりません" };
+  await db.audit.log({
+    orgId: user.orgId,
+    userId: user.userId,
+    projectId: row.projectId,
+    action: "contract.restore",
+    targetType: "contract",
+    targetId: contractId,
+  });
+  revalidate(row.projectId, contractId);
+  return { ok: true as const };
+}

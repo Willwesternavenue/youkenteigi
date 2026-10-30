@@ -294,6 +294,8 @@ export const contracts = pgTable("contracts", {
   title: text("title").notNull(),
   clientName: text("client_name"),
   latestVersion: integer("latest_version").notNull().default(1),
+  // 論理削除（一覧から隠すだけ。版の履歴は残し、元に戻せる）
+  deletedAt: ts("deleted_at"),
   createdBy: text("created_by").references(() => profiles.id),
   createdAt: ts("created_at").defaultNow().notNull(),
   updatedAt: ts("updated_at").defaultNow().notNull(),
