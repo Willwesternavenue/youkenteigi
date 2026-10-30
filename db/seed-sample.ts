@@ -98,8 +98,13 @@ function toScheduleInput(
   };
 }
 
-/** Delete only this sample project's rows (FK-safe order). Scoped — never global. */
-async function clearSample(orgId: string) {
+/**
+ * Delete only this sample project's artifacts (FK-safe order), in one
+ * transaction so a failure leaves the sample untouched. Scoped — never global.
+ * The project row itself is kept (upserted below) so log tables that reference
+ * it (ai_usage / audit_logs) stay valid and are never deleted.
+ */
+async function clearSample() {
   const pid = SAMPLE_PROJECT_ID;
   const byProject = [
     schema.estimateItems,
@@ -120,12 +125,11 @@ async function clearSample(orgId: string) {
     schema.files,
     schema.hearings,
   ] as const;
-  for (const table of byProject) {
-    await database.delete(table).where(eq(table.projectId, pid));
-  }
-  await database
-    .delete(schema.projects)
-    .where(and(eq(schema.projects.organizationId, orgId), eq(schema.projects.id, pid)));
+  await database.transaction(async (tx) => {
+    for (const table of byProject) {
+      await tx.delete(table).where(eq(table.projectId, pid));
+    }
+  });
 }
 
 const RAW_TEXT =
@@ -166,13 +170,12 @@ async function main() {
   }
   const userId = owner.id;
 
-  // 2. Wipe ONLY this sample project (idempotent; scoped to SAMPLE_PROJECT_ID).
-  await clearSample(orgId);
+  // 2. Wipe ONLY this sample project's artifacts (idempotent; scoped to SAMPLE_PROJECT_ID).
+  await clearSample();
 
-  // 3. Project row — fixed id + is_sample badge.
-  await database.insert(schema.projects).values({
-    id: SAMPLE_PROJECT_ID,
-    organizationId: orgId,
+  // 3. Project row — fixed id + is_sample badge. Upserted (not deleted) so
+  //    references from ai_usage / audit_logs keep working.
+  const sampleProject = {
     clientName: "株式会社サンプル製作所",
     clientDomain: "sample-mfg.co.jp",
     projectName: "問い合わせ対応AIアシスタント導入",
@@ -231,8 +234,19 @@ async function main() {
     note: "【サンプル案件】全機能のイメージ共有用。db:seed-sample でいつでも再生成できます。",
     isSample: true,
     ownerId: userId,
-    createdBy: userId,
-  });
+  };
+  await database
+    .insert(schema.projects)
+    .values({
+      id: SAMPLE_PROJECT_ID,
+      organizationId: orgId,
+      createdBy: userId,
+      ...sampleProject,
+    })
+    .onConflictDoUpdate({
+      target: schema.projects.id,
+      set: { ...sampleProject, updatedAt: new Date().toISOString() },
+    });
 
   // 4. Hearing.
   await db.hearings.upsert(

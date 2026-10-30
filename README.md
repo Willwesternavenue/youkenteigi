@@ -9,11 +9,11 @@ AI開発会社の社内向けプリセールス支援ツール。初回商談の
 ```bash
 npm install
 cp .env.example .env.local   # DATABASE_URL に Supabase Postgres を設定
-npm run setup     # Postgres にマイグレーション適用・初期データ投入
+npm run setup     # マイグレーション適用＋初期データ投入（DBが空の時だけ。既存データには触れない）
 npm run dev       # http://localhost:3000
 ```
 
-DB は Supabase Postgres が必要です（`DATABASE_URL`）。AI は既定で決定論的なモック（APIキー不要）。
+DB は Supabase Postgres が必要です（`DATABASE_URL`）。`.env.local` の DB は通常チームの共有DBです。`db:seed` は既存データがあると何もしません。全消去して入れ直すのは `SEED_ALLOW_WIPE=1 npm run db:seed` を明示した時だけです（全案件が消えるので共有DBでは使わない）。AI は既定で決定論的なモック（APIキー不要）。
 
 ### ログイン（ローカル開発）
 
@@ -74,8 +74,8 @@ DB ドライバは [`db/client.ts`](db/client.ts) に隔離（postgres-js）、�
 ```bash
 npm run dev          # 開発サーバ
 npm run build        # 本番ビルド
-npm run setup        # マイグレーション + 初期データ
-npm run db:reset     # DBを初期化して作り直す
+npm run setup        # マイグレーション + 初期データ（DBが空の時だけ）
+npm run db:seed-sample  # サンプル案件だけを再生成（他の案件には触れない・共有DBでも安全）
 npm run db:generate  # スキーマ変更からマイグレーションSQLを生成
 npm run typecheck    # 型チェック
 ```

@@ -13,8 +13,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ```bash
 npm run setup && npm run dev   # http://localhost:3000
 npm run build                  # 本番ビルド（検証ゲート。型チェック込み）
-npm run db:reset               # DB を作り直す（data/app.db は gitignore）
+npm run db:seed-sample         # サンプル案件（is_sample）だけを再生成。共有DBでも安全
 ```
+
+**`.env.local` の DB はチームの共有 Supabase DB。全消去は絶対にしない。** `db:seed`（`setup`）は既存データがあればスキップする。全消去（`SEED_ALLOW_WIPE=1`）は空の使い捨てDBでのみ。
 
 DB は Supabase Postgres（`DATABASE_URL` 必須）。認証は **Supabase Auth のマジックリンク**（`@aidealab.com` のメールにログインリンク送信→クリック→`/auth/callback`、パスワード無し）。要 env: `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`。シードユーザー: admin=`tachiiri@aidealab.com` ほかロール別。`profiles` が org/role の source of truth（email で照合）。`proxy.ts`（旧 middleware）がセッションcookieを毎リクエスト更新。
 

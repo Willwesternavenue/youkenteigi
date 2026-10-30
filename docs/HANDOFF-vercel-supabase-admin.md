@@ -147,7 +147,7 @@
 - AI: `lib/ai/{providers,mock-provider,claude-provider,prompts,context,consistency-input}.ts`。
 - 出力: `lib/export/*` / `app/api/export/*`（runtime=nodejs）。
 - 画面: `app/(app)/projects/[projectId]/*`（タブ群）、`components/*`、ナビ `components/projects/project-nav.tsx`(SECTIONS)。
-- 起動: `npm run setup && npm run dev` / 検証ゲート `npm run build` / `npm run db:reset`。
+- 起動: `npm run setup && npm run dev` / 検証ゲート `npm run build` / サンプル再生成 `npm run db:seed-sample`（`db:reset` は共有DBを消す事故の原因になったため廃止）。
 
 ## 5. 既知の注意点（移行で踏みやすい）
 - json列はPGで `jsonb` に。boolean/timestampの型差。日付はアプリ全体ISO文字列前提（schedule-calc等）。
