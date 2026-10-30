@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Download, FileOutput, Save, Trash2, Wand2 } from "lucide-react";
+import { Download, FileOutput, Save, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,9 +24,12 @@ import {
   deleteContract,
   getContractPrefill,
   restoreContract,
+  reviewContract,
   saveContract,
 } from "@/app/_actions/contracts";
+import type { ContractReview } from "@/lib/ai/providers";
 import { ContractDiffLegend, ContractDocument } from "./contract-document";
+import { ContractReviewPanel } from "./contract-review-panel";
 
 const DATE_FIELDS = ["contract_year", "contract_month", "contract_day"];
 
@@ -54,6 +57,7 @@ export function ContractEditor({
   initialValues,
   initialVersion,
   canEdit,
+  canUseAi,
 }: {
   contractId: string;
   projectId: string | null;
@@ -62,6 +66,7 @@ export function ContractEditor({
   initialValues: ContractValues;
   initialVersion: number;
   canEdit: boolean;
+  canUseAi: boolean;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<ContractValues>(initialValues);
@@ -71,6 +76,8 @@ export function ContractEditor({
   const [diff, setDiff] = useState(false);
   const [docUrl, setDocUrl] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [review, setReview] = useState<ContractReview | null>(null);
+  const [reviewing, setReviewing] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const dirty = !sameValues(values, saved);
@@ -98,6 +105,38 @@ export function ContractEditor({
       setVersion(res.version);
       toast.success(`v${res.version} として保存しました`);
     });
+  }
+
+  async function runReview() {
+    setReviewing(true);
+    try {
+      const res = await reviewContract(contractId, values);
+      if (!res.ok) toast.error(res.error);
+      else setReview(res.review);
+    } finally {
+      setReviewing(false);
+    }
+  }
+
+  /** 提案の反映は空欄にだけ（入力済みの値は上書きしない）。保存するまで確定しない。 */
+  function applySuggestion(field: string, value: string) {
+    setValues((v) => ((v[field] ?? "").trim() === "" ? { ...v, [field]: value } : v));
+  }
+
+  function applyAllSuggestions() {
+    if (!review) return;
+    const { values: next, filledKeys } = fillEmpty(
+      values,
+      Object.fromEntries(review.suggestions.map((s) => [s.field, s.value])),
+    );
+    setValues(next);
+    toast.success(`${filledKeys.length} 項目に反映しました（未保存）`);
+  }
+
+  function focusField(field: string) {
+    const el = document.getElementById(`contract-${field}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.focus({ preventScroll: true });
   }
 
   function prefill() {
@@ -201,6 +240,12 @@ export function ContractEditor({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {canEdit && canUseAi && (
+            <Button variant="outline" onClick={runReview} disabled={reviewing}>
+              <Sparkles className="size-4" />
+              {reviewing ? "レビュー中..." : "AIレビュー・提案"}
+            </Button>
+          )}
           {canEdit && projectId && (
             <Button variant="outline" onClick={prefill} disabled={pending}>
               <Wand2 className="size-4" />
@@ -229,6 +274,16 @@ export function ContractEditor({
           )}
         </div>
       </div>
+      {review && (
+        <ContractReviewPanel
+          review={review}
+          values={values}
+          onApply={applySuggestion}
+          onApplyAll={applyAllSuggestions}
+          onFocusField={focusField}
+          onClose={() => setReview(null)}
+        />
+      )}
       {docUrl && (
         <p className="text-sm">
           <a href={docUrl} target="_blank" rel="noreferrer" className="text-primary underline">

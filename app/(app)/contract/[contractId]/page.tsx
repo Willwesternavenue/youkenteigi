@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { can } from "@/lib/rbac";
 import { ContractEditor } from "@/components/contract/contract-editor";
 
+// AIレビューは最長~120秒。Server Action のタイムアウト既定値をページ単位で引き上げる。
+export const maxDuration = 300;
+
 export default async function ContractPage({
   params,
 }: {
@@ -29,6 +32,7 @@ export default async function ContractPage({
         initialValues={contract.values}
         initialVersion={contract.latestVersion}
         canEdit={can(user.role, "document.edit")}
+        canUseAi={can(user.role, "ai.generate")}
       />
     </div>
   );

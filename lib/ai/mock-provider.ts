@@ -18,6 +18,9 @@ import type {
   QualityInput,
   QualityReport,
   QualityFinding,
+  ContractReviewInput,
+  ContractReview,
+  ContractIssue,
 } from "./providers";
 import {
   docTitle,
@@ -1246,6 +1249,110 @@ export class MockProvider implements AIProvider {
         : `${findings.length}件の改善点（重大 ${high}件）を検出しました。完成度の目安は${score}点です。`;
 
     return { summary, score, findings };
+  }
+
+  async reviewContract(input: ContractReviewInput): Promise<ContractReview> {
+    // 要件定義の該当セクションから箇条書きの項目だけを抜き出す
+    // （各セクション冒頭の説明文は差し込み値に向かないので使わない）
+    const section = (...keys: string[]) => {
+      for (const key of keys) {
+        const md = input.requirements?.find((r) => r.key === key)?.markdown;
+        if (!md) continue;
+        const lines = md
+          .split("\n")
+          .filter((l) => /^\s*([-*・]|\d+[.．])\s/.test(l))
+          .map((l) => l.replace(/^\s*([-*・]|\d+[.．])\s+/, "").replace(/\*\*/g, "").trim())
+          .filter(Boolean);
+        if (lines.length) return lines;
+      }
+      return [];
+    };
+    const bullets = (lines: string[], n: number) =>
+      lines.slice(0, n).map((l) => `・${l.slice(0, 60)}`).join("\n");
+    const hasAiModel = section("ai_model", "ai").length > 0;
+    const dataLines = section("data");
+    const envLines = section("deployment", "system_overview");
+
+    const candidates: Record<string, { value: string; reason: string }> = {
+      dev_target: {
+        value: input.project?.description || input.project?.projectName || "",
+        reason: "案件の「つくるもの」から作成しました。",
+      },
+      deliverables: {
+        value: [
+          "・本件システムのソースコード一式",
+          "・要件定義書および画面設計書",
+          hasAiModel ? "・AIモデルの設定・プロンプト一式" : "",
+          "・操作マニュアル",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        reason: "要件定義書の構成（機能一覧・画面設計・AI要件）から作成しました。",
+      },
+      usage_env: {
+        value: envLines.length ? bullets(envLines, 3) : "",
+        reason: "要件定義書の「導入形態」「システム全体像」から抜き出しました。",
+      },
+      prerequisites: {
+        value:
+          "・委託者は対象データおよび資料等を作業開始までに提供する\n・本件業務の範囲は本別紙に記載の範囲とし、範囲外の作業は別途協議する",
+        reason: "準委任型のひな形で一般的な前提を、別紙の項目に合わせて記載しました。",
+      },
+      data_overview: {
+        value: dataLines.length ? bullets(dataLines, 2) : "",
+        reason: "要件定義書の「データ要件」から抜き出しました。",
+      },
+      contractor_tasks: {
+        value: "・要件定義・設計\n・開発およびテスト\n・連絡協議会での進捗報告",
+        reason: "スコープ・要件定義の工程から作成しました。",
+      },
+      client_tasks: {
+        value: "・対象データおよび資料等の提供\n・仕様に関する意思決定と確認\n・本件成果物の確認（第10条）",
+        reason: "本文第6条・第10条・第11条で委託者が担う作業に合わせました。",
+      },
+      meeting_frequency: { value: "隔週1回", reason: "準委任の開発で一般的な頻度です。" },
+      meeting_place: { value: "オンライン会議", reason: "ヒアリングがオンラインで実施されているため。" },
+      dataset_delivery: {
+        value: "なし",
+        reason: "学習用データセットの作成は要件定義書に含まれていないため。",
+      },
+      program_delivery: {
+        value: hasAiModel ? "あり（ソースコード）" : "なし",
+        reason: "要件定義書のAI要件の有無から判断しました。",
+      },
+      model_delivery: {
+        value: hasAiModel ? "なし（既存の大規模言語モデルをAPI経由で利用）" : "なし",
+        reason: "要件定義書のAIモデル選定から判断しました。",
+      },
+      review_period: { value: "14", reason: "確認期間として一般的な日数です。" },
+      payment_terms: {
+        value:
+          "業務の完了確認後、受託者が発行する請求書に基づき、請求書受領月の翌月末日までに銀行振込にて支払う（振込手数料は委託者負担）",
+        reason: "第4条・第10条の流れ（確認完了後の支払い）に合わせました。",
+      },
+    };
+    const suggestions = input.suggestFor
+      .map((field) => ({ field, ...candidates[field] }))
+      .filter((s) => s.value);
+
+    // 差し込み値どうしの食い違い（例：成果物にモデルがあるのに明細は「なし」）
+    const value = (id: string) => input.fields.find((f) => f.id === id)?.value.trim() ?? "";
+    const issues: ContractIssue[] = [];
+    if (/学習済みモデル/.test(value("deliverables")) && /^なし/.test(value("model_delivery"))) {
+      issues.push({
+        severity: "medium",
+        field: "model_delivery",
+        title: "「本件成果物」と「成果物の明細」が食い違っています",
+        detail: "別紙２の本件成果物に学習済みモデルが含まれていますが、別紙１１の学習済みモデルは「なし」です。第2条10号では、本件成果物は別紙１１の明細で定まります。",
+        suggestion: "どちらかの差し込み値を揃えてください。",
+      });
+    }
+
+    return {
+      summary: `空欄 ${suggestions.length} 項目に提案があります。食い違いは ${issues.length} 件です。`,
+      suggestions,
+      issues,
+    };
   }
 
   async generateSlideBullets(

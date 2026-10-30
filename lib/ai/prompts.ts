@@ -401,6 +401,23 @@ export const consistencyReportSchema = z.object({
   ),
 });
 
+export const contractReviewSchema = z.object({
+  summary: z.string(),
+  suggestions: z.array(
+    z.object({ field: z.string(), value: z.string(), reason: z.string() }),
+  ),
+  issues: z.array(
+    z.object({
+      severity: z.enum(["high", "medium", "low"]),
+      // モデルが null を返しても検証で落とさない（無い扱いにする）
+      field: z.string().nullish().transform((v) => v || undefined),
+      title: z.string(),
+      detail: z.string(),
+      suggestion: z.string().nullish().transform((v) => v || undefined),
+    }),
+  ),
+});
+
 export const scopeWbsSchema = z.object({
   formLabel: z.string(),
   approach: z.string(),

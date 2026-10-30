@@ -18,6 +18,8 @@ import type {
   ConsistencyReport,
   QualityInput,
   QualityReport,
+  ContractReviewInput,
+  ContractReview,
 } from "./providers";
 import {
   BASE_RULES,
@@ -35,6 +37,7 @@ import {
   scopeWbsSchema,
   consistencyReportSchema,
   qualityReportSchema,
+  contractReviewSchema,
   slideBulletsSchema,
   sectionsFor,
   serializeContext,
@@ -459,6 +462,26 @@ ${JSON.stringify(input.sections)}
 
 JSON形式: {"summary":string,"score":number,"findings":[{"category":string,"severity":"high"|"medium"|"low","section":string,"quote":string,"issue":string,"suggestion":string}]}`;
     return this.complete(prompt, qualityReportSchema);
+  }
+
+  async reviewContract(input: ContractReviewInput): Promise<ContractReview> {
+    const prompt = `あなたはAI開発会社の契約実務アシスタントです。開発委託契約書（ひな形）の「差し込み値」について、(A) 空欄への記入提案 と (B) 食い違いの指摘 を行います。
+
+最重要ルール（必ず守ること）:
+- 契約書の本文・別紙の固定文言は弁護士レビュー済みで、正しいものとして扱う。本文の修正・言い換え・条項の追加や削除は一切提案しない。本文そのものの表現や妥当性も評価しない。
+- (A) suggestions は suggestFor に列挙された差し込み口だけ。入力済みの項目には提案しない。
+- 提案値は契約書にそのまま差し込める簡潔な日本語（1〜4行。複数行は「・」の箇条書き）。案件情報・要件定義・ヒアリングに根拠があるものだけを書き、根拠のない数値・固有名・金額は作らない。根拠が乏しい項目は提案しない（無理にすべて埋めない）。
+- reason には根拠（どの情報から導いたか）を1文で書く。
+- (B) issues は食い違い（齟齬）がある時だけ出す。対象は、差し込み値どうしの矛盾、差し込み値と案件情報・要件定義・見積の食い違い、差し込み値と本文の固定条項との食い違い（例：本文は準委任型で受託者に完成義務がないのに、差し込み値が成果物の完成や検収を前提にしている）。表現の好み・一般的な助言・本文の改善提案は出さない。食い違いが無ければ issues は空配列にする。
+- 本文の固定条項と差し込み値が食い違う場合も、本文の変更ではなく「差し込み値の見直し」か「弁護士への確認」を suggestion にする。
+- 日付の前後関係、委託料と見積の差、開発形態（請負/準委任）はシステム側で別途チェックしているので issues に含めない。
+- field には関係する差し込み口の id（fields の id）を入れる。
+
+データ(JSON):
+${JSON.stringify(input)}
+
+JSON形式: {"summary":string,"suggestions":[{"field":string,"value":string,"reason":string}],"issues":[{"severity":"high"|"medium"|"low","field":string,"title":string,"detail":string,"suggestion":string}]}`;
+    return this.complete(prompt, contractReviewSchema);
   }
 
   async generateSlideBullets(

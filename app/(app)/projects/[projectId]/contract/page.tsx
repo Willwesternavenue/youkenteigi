@@ -7,6 +7,9 @@ import { formatDate } from "@/lib/format";
 import { ContractEditor } from "@/components/contract/contract-editor";
 import { NewContractButton } from "@/components/contract/new-contract-button";
 
+// AIレビューは最長~120秒。Server Action のタイムアウト既定値をページ単位で引き上げる。
+export const maxDuration = 300;
+
 export default async function ProjectContractPage({
   params,
 }: {
@@ -53,6 +56,7 @@ export default async function ProjectContractPage({
         initialValues={current.values}
         initialVersion={current.latestVersion}
         canEdit={canEdit}
+        canUseAi={can(user.role, "ai.generate")}
       />
       {(list.length > 1 || canEdit) && (
         <div className="flex flex-wrap items-center gap-3 border-t pt-4 text-sm">

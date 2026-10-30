@@ -4,13 +4,22 @@ import { revalidatePath } from "next/cache";
 import { requireRole, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeTotals } from "@/lib/estimate-calc";
+import { getProvider, type ContractReview } from "@/lib/ai/providers";
+import { runAi } from "@/lib/ai/run";
 import { TEMPLATE_REVISION } from "@/lib/contract/template";
 import {
   CONTRACT_FIELDS,
+  contractTexts,
   contractTitle,
   prefillFromProject,
   type ContractValues,
 } from "@/lib/contract/render";
+import {
+  deterministicIssues,
+  filterIssues,
+  filterSuggestions,
+  suggestTargets,
+} from "@/lib/contract/review";
 
 const FIELD_IDS = new Set(CONTRACT_FIELDS.map((f) => f.id));
 const MAX_VALUE_LENGTH = 5000;
@@ -156,4 +165,82 @@ export async function restoreContract(contractId: string) {
   });
   revalidate(row.projectId, contractId);
   return { ok: true as const };
+}
+
+/**
+ * AIレビュー・提案（保存はしない）。弁護士レビュー済みの本文は変更対象にせず、
+ * 記述系の空欄への提案と、食い違いがある時だけの指摘を返す。
+ * AI の出力はここでもホワイトリストで絞る（プロンプトだけに頼らない）。
+ */
+export async function reviewContract(
+  contractId: string,
+  values: Record<string, unknown>,
+): Promise<{ ok: true; review: ContractReview } | { ok: false; error: string }> {
+  const user = await requireUser();
+  requireRole(user, "ai.generate");
+  const contract = await db.contracts.get(user.orgId, contractId);
+  if (!contract) return { ok: false, error: "契約書が見つかりません" };
+  const current = sanitize(values);
+
+  const projectId = contract.projectId;
+  const [project, hearing, requirements, est] = projectId
+    ? await Promise.all([
+        db.projects.getById(user.orgId, projectId),
+        db.hearings.getByProject(user.orgId, projectId),
+        db.documents.getLatest(user.orgId, projectId, "requirements"),
+        db.estimates.getLatest(user.orgId, projectId),
+      ])
+    : [null, null, null, null];
+  const estimateTotal = est
+    ? computeTotals(est.items, est.estimate.bufferRate, est.estimate.taxRate).total
+    : null;
+
+  const { contractText, appendixText } = contractTexts(current);
+  try {
+    const raw = await runAi(
+      user,
+      "contract_review",
+      () =>
+        getProvider().reviewContract({
+          project: project
+            ? {
+                projectName: project.projectName,
+                clientName: project.clientName,
+                developmentForm: project.developmentForm,
+                description: project.description,
+                expectedStartDate: project.expectedStartDate,
+                expectedDeliveryDate: project.expectedDeliveryDate,
+              }
+            : null,
+          hearingSummary: hearing?.summary ?? null,
+          requirements: requirements?.contentJson ?? null,
+          estimateTotal,
+          fields: CONTRACT_FIELDS.map((f) => ({
+            id: f.id,
+            label: f.label,
+            group: f.group,
+            value: current[f.id] ?? "",
+          })),
+          suggestFor: suggestTargets(current),
+          contractBody: `${contractText}\n\n${appendixText}`,
+        }),
+      projectId ?? undefined,
+    );
+    return {
+      ok: true,
+      review: {
+        summary: raw.summary,
+        suggestions: filterSuggestions(raw.suggestions, current),
+        issues: [
+          ...deterministicIssues(current, {
+            developmentForm: project?.developmentForm,
+            estimateTotal,
+          }),
+          ...filterIssues(raw.issues),
+        ],
+      },
+    };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
 }

@@ -243,6 +243,51 @@ export interface ConsistencyReport {
   findings: ConsistencyFinding[];
 }
 
+// ---------- contract review (AgreementWriter; 本文は弁護士レビュー済みで不変) ----------
+
+export interface ContractReviewInput {
+  /** 案件に紐づかない単体契約なら null */
+  project: {
+    projectName: string;
+    clientName: string;
+    developmentForm?: string | null;
+    description?: string | null;
+    expectedStartDate?: string | null;
+    expectedDeliveryDate?: string | null;
+  } | null;
+  hearingSummary: string | null;
+  requirements: { key: string; heading: string; markdown: string }[] | null;
+  /** 最新見積の税込合計（円） */
+  estimateTotal: number | null;
+  /** すべての差し込み口と現在の値 */
+  fields: { id: string; label: string; group: string; value: string }[];
+  /** 提案してよい空欄（記述系のみ。サーバ側で決める） */
+  suggestFor: string[];
+  /** 差し込み済みの本文＋別紙（参照専用。変更提案の対象外） */
+  contractBody: string;
+}
+
+export interface ContractSuggestion {
+  field: string;
+  value: string;
+  reason: string;
+}
+
+export interface ContractIssue {
+  severity: "high" | "medium" | "low";
+  field?: string; // 関係する差し込み口（本文側の食い違いなら省略）
+  title: string;
+  detail: string;
+  suggestion?: string;
+}
+
+export interface ContractReview {
+  summary: string;
+  suggestions: ContractSuggestion[];
+  /** 食い違いがある時だけ。無ければ空配列 */
+  issues: ContractIssue[];
+}
+
 // ---------- requirements document quality review (doc-internal) ----------
 
 export type QualityCategory =
@@ -306,6 +351,11 @@ export interface AIProvider {
   reviewConsistency(input: ConsistencyInput): Promise<ConsistencyReport>;
   /** Review the requirements document text itself for ambiguity/contradiction/omission/etc. */
   reviewRequirementsQuality(input: QualityInput): Promise<QualityReport>;
+  /**
+   * 契約書の差し込み値への提案（空欄のみ）と、食い違いの指摘。
+   * 弁護士レビュー済みの本文は変更・言い換えの対象にしない。
+   */
+  reviewContract(input: ContractReviewInput): Promise<ContractReview>;
   /** Fill a proposal slide's bullets from its title/topic, grounded in context. */
   generateSlideBullets(
     ctx: GenerationContext,
