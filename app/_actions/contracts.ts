@@ -226,20 +226,20 @@ export async function reviewContract(
         }),
       projectId ?? undefined,
     );
-    return {
-      ok: true,
-      review: {
-        summary: raw.summary,
-        suggestions: filterSuggestions(raw.suggestions, current),
-        issues: [
-          ...deterministicIssues(current, {
-            developmentForm: project?.developmentForm,
-            estimateTotal,
-          }),
-          ...filterIssues(raw.issues, current),
-        ],
-      },
-    };
+    const suggestions = filterSuggestions(raw.suggestions, current);
+    const issues = [
+      ...deterministicIssues(current, {
+        developmentForm: project?.developmentForm,
+        estimateTotal,
+      }),
+      ...filterIssues(raw.issues, current),
+    ];
+    // 要約は絞り込んだ結果から作る（AI の要約は除外した指摘に触れることがあるため使わない）
+    const summary =
+      suggestions.length === 0 && issues.length === 0
+        ? "提案できる空欄も、食い違いもありませんでした。"
+        : `空欄 ${suggestions.length} 項目に提案があります。食い違いは ${issues.length} 件です。`;
+    return { ok: true, review: { summary, suggestions, issues } };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
