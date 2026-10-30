@@ -15,6 +15,7 @@ import {
   Sparkles,
   CornerDownRight,
   ListTree,
+  FileSignature,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -120,6 +121,14 @@ export const SECTIONS: Section[] = [
       { seg: "review", label: "レビュー・承認" },
       { seg: "consistency", label: "整合性チェック" },
     ],
+  },
+  {
+    // 契約書 = 弁護士レビュー済みひな形に案件情報を差し込む（本文は不変）
+    key: "contract",
+    label: "契約書",
+    icon: FileSignature,
+    step: 10,
+    tabs: [{ seg: "contract", label: "契約書" }],
   },
 ];
 

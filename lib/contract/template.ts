@@ -1,8 +1,29 @@
+// 開発委託契約書テンプレート（弁護士レビュー済み・不変資産）
+//
+// AgreementWriter（/Users/tachiiri/repo/agreement の js/template.js、
+// 2026-07-18 版）からの逐語コピー。本文（CONTRACT_TEMPLATE / APPENDIX_TEMPLATE）は
+// 弁護士レビュー済みのため、AI にも人にも書き換えさせない。変わるのは {{変数}} の
+// 差し込み値だけで、差分表示でその箇所を常に明示する。
+// 本文を変える場合は、弁護士レビュー後に TEMPLATE_REVISION を更新すること。
+
+export interface ContractField {
+  id: string;
+  label: string;
+  placeholder: string;
+  type: "text" | "textarea" | "number";
+  required: boolean;
+  group: string;
+  defaultValue?: string;
+}
+
+/** 保存した版がどの本文テンプレートで作られたかを記録するための識別子。 */
+export const TEMPLATE_REVISION = "2026-07-18";
+
 // 開発委託契約書テンプレート（全文）
 // 可変部分は {{変数名}} で定義
 // Original source: 開発委託契約書ひな形.docx
 
-export const TEMPLATE_FIELDS = [
+export const TEMPLATE_FIELDS: ContractField[] = [
     // === 基本情報 ===
     {
         id: "client_name",
@@ -46,7 +67,7 @@ export const TEMPLATE_FIELDS = [
     },
 ];
 
-export const APPENDIX_FIELDS = [
+export const APPENDIX_FIELDS: ContractField[] = [
     // === 別紙：開発内容 ===
     {
         id: "dev_target",

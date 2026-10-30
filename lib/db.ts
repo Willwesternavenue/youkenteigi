@@ -26,6 +26,8 @@ import {
   aiSettings,
   aiUsage,
   auditLogs,
+  contracts,
+  contractVersions,
   type ProjectRow,
   type ProfileRow,
   type OrganizationRow,
@@ -491,6 +493,141 @@ const scopeRepo = {
       developmentForm,
       plan,
       createdBy: userId,
+    });
+  },
+};
+
+// ---------- contracts (AgreementWriter; append version of slot values) ----------
+
+export interface ContractSummary {
+  id: string;
+  projectId: string | null;
+  projectName: string | null;
+  title: string;
+  clientName: string | null;
+  latestVersion: number;
+  updatedAt: string;
+}
+
+export interface ContractDetail extends ContractSummary {
+  values: Record<string, string>;
+  templateRevision: string;
+}
+
+export interface ContractInput {
+  title: string;
+  clientName: string | null;
+  values: Record<string, string>;
+  templateRevision: string;
+  userId: string;
+}
+
+const contractSummaryCols = {
+  id: contracts.id,
+  projectId: contracts.projectId,
+  projectName: projects.projectName,
+  title: contracts.title,
+  clientName: contracts.clientName,
+  latestVersion: contracts.latestVersion,
+  updatedAt: contracts.updatedAt,
+};
+
+const contractsRepo = {
+  list(
+    orgId: string,
+    opts: { projectId?: string } = {},
+  ): Promise<ContractSummary[]> {
+    return database
+      .select(contractSummaryCols)
+      .from(contracts)
+      .leftJoin(projects, eq(contracts.projectId, projects.id))
+      .where(
+        and(
+          eq(contracts.organizationId, orgId),
+          opts.projectId ? eq(contracts.projectId, opts.projectId) : undefined,
+        ),
+      )
+      .orderBy(desc(contracts.updatedAt));
+  },
+  async get(orgId: string, contractId: string): Promise<ContractDetail | null> {
+    const [row] = await database
+      .select(contractSummaryCols)
+      .from(contracts)
+      .leftJoin(projects, eq(contracts.projectId, projects.id))
+      .where(and(eq(contracts.organizationId, orgId), eq(contracts.id, contractId)));
+    if (!row) return null;
+    const latest = await database.query.contractVersions.findFirst({
+      where: and(
+        eq(contractVersions.organizationId, orgId),
+        eq(contractVersions.contractId, contractId),
+      ),
+      orderBy: [desc(contractVersions.version)],
+    });
+    return {
+      ...row,
+      values: latest?.values ?? {},
+      templateRevision: latest?.templateRevision ?? "",
+    };
+  },
+  async create(
+    orgId: string,
+    projectId: string | null,
+    input: ContractInput,
+  ): Promise<string> {
+    const id = uid();
+    await database.transaction(async (tx) => {
+      await tx.insert(contracts).values({
+        id,
+        organizationId: orgId,
+        projectId,
+        title: input.title,
+        clientName: input.clientName,
+        latestVersion: 1,
+        createdBy: input.userId,
+      });
+      await tx.insert(contractVersions).values({
+        id: uid(),
+        organizationId: orgId,
+        contractId: id,
+        version: 1,
+        values: input.values,
+        templateRevision: input.templateRevision,
+        createdBy: input.userId,
+      });
+    });
+    return id;
+  },
+  /** Saves a new version (edits are never in place). Returns it, or null if not found. */
+  async saveVersion(
+    orgId: string,
+    contractId: string,
+    input: ContractInput,
+  ): Promise<number | null> {
+    return database.transaction(async (tx) => {
+      const current = await tx.query.contracts.findFirst({
+        where: and(eq(contracts.organizationId, orgId), eq(contracts.id, contractId)),
+      });
+      if (!current) return null;
+      const version = current.latestVersion + 1;
+      await tx.insert(contractVersions).values({
+        id: uid(),
+        organizationId: orgId,
+        contractId,
+        version,
+        values: input.values,
+        templateRevision: input.templateRevision,
+        createdBy: input.userId,
+      });
+      await tx
+        .update(contracts)
+        .set({
+          title: input.title,
+          clientName: input.clientName,
+          latestVersion: version,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(and(eq(contracts.organizationId, orgId), eq(contracts.id, contractId)));
+      return version;
     });
   },
 };
@@ -1784,6 +1921,7 @@ export const db = {
   consistency: consistencyRepo,
   review: reviewRepo,
   documents: documentsRepo,
+  contracts: contractsRepo,
   estimates: estimatesRepo,
   schedules: schedulesRepo,
   screenDesign: screenDesignRepo,

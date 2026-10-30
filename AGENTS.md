@@ -82,6 +82,15 @@ DB は Supabase Postgres（`DATABASE_URL` 必須）。認証は **Supabase Auth 
 - **図のコメント修正**: `adjustScreenDesign(ctx,current,instruction)`（Mock+Claude）で整合性を保ったまま全体を再生成→新 version。**要件定義への波及**: `applyDesignToRequirements` が `regenerateSection` で `screen_list`/`screen_transition`/`system_overview` を再生成し要件定義書を新 version 保存。これを効かせるため `GenerationContext.design` を追加し、`buildGenerationContext` が最新設計をロード、`serializeContext`（Claude用）と Mock の該当セクションが設計から導出する。
 - Mockは具体的内容を出す（プレースホルダ排除）。サンプル案件のヒアリングは `db/seed.ts` に詳細記述（具体数値・固有名）。
 
+## 契約書の要点（AgreementWriter 由来）
+
+- **本文は弁護士レビュー済みで不変**: `lib/contract/template.ts` は AgreementWriter（`/Users/tachiiri/repo/agreement` の `js/template.js`）の逐語コピー。AI にも人にも本文を書き換えさせない。変わるのは `{{変数}}` の差し込み値だけ。本文を変える時は弁護士レビュー後に `TEMPLATE_REVISION` を更新する。
+- 保存するのは差し込み値だけ: `contracts`（project_id NULL = 単体契約）＋ `contract_versions`（追記バージョン、`values` jsonb と `template_revision`）。サーバアクション `app/_actions/contracts.ts` は既知の差し込み口以外を捨てる。
+- 描画・出力・プリフィルは `lib/contract/render.ts` の純関数（行判定は元 preview.js と同じ）。プレビュー `components/contract/contract-document.tsx` の**差分表示**（`<del>【項目名】</del><ins>値</ins>`）で本文からの変更箇所を常に明示する。
+- 案件プリフィル `prefillFromProject` は決定論的（委託者名・開発対象・作業期間・責任者・委託料=最新見積の税込合計）。「案件情報から入力」は**空欄だけ**埋める。
+- Google Docs 出力は `lib/contract/google-docs.ts`（ブラウザ側 GIS OAuth、元 google-docs.js と同じ書式リクエスト）。OAuth の承認済み生成元は kakerukun.vercel.app と localhost:3000。
+- ルート: `/contract`（一覧・単体作成）、`/contract/[contractId]`、案件タブ `/projects/[projectId]/contract`。
+
 ## 次のスライス候補（仕様の未実装分）
 
 機能優先度（feature_priorities, Must/Should/Could/Later/OoS）、レビュー・コメント・承認（reviews/comments/approvals）、ファイルアップロード（storage facade は実装済み）、過去案件RAG。`db/schema.ts` 追記 → `npm run db:generate` → `lib/db.ts` に repo 追加、の順。

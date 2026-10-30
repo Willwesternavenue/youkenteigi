@@ -50,6 +50,13 @@
       "when": 1780803492538,
       "tag": "0006_new_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793321597375,
+      "tag": "0007_melted_king_bedlam",
+      "breakpoints": true
     }
   ]
 }

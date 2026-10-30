@@ -282,6 +282,40 @@ export const documents = pgTable("documents", {
   updatedAt: ts("updated_at").defaultNow().notNull(),
 });
 
+// 契約書（AgreementWriter 由来）。project_id が NULL なら案件に紐づかない単体契約。
+// 本文テンプレートはコード側で不変（lib/contract/template.ts）で、保存するのは
+// 差し込み値だけ（contract_versions）。
+export const contracts = pgTable("contracts", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  projectId: text("project_id").references(() => projects.id),
+  title: text("title").notNull(),
+  clientName: text("client_name"),
+  latestVersion: integer("latest_version").notNull().default(1),
+  createdBy: text("created_by").references(() => profiles.id),
+  createdAt: ts("created_at").defaultNow().notNull(),
+  updatedAt: ts("updated_at").defaultNow().notNull(),
+});
+
+// 契約書の差し込み値 — append version（編集も新バージョンの INSERT）
+export const contractVersions = pgTable("contract_versions", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .references(() => organizations.id)
+    .notNull(),
+  contractId: text("contract_id")
+    .references(() => contracts.id)
+    .notNull(),
+  version: integer("version").notNull(),
+  values: jsonb("values").$type<Record<string, string>>().notNull(),
+  // どの版の（弁護士レビュー済み）本文テンプレートで作ったか
+  templateRevision: text("template_revision").notNull(),
+  createdBy: text("created_by").references(() => profiles.id),
+  createdAt: ts("created_at").defaultNow().notNull(),
+});
+
 export const auditLogs = pgTable("audit_logs", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").references(() => organizations.id),
@@ -566,6 +600,8 @@ export type ConsistencyReportRow = typeof consistencyReports.$inferSelect;
 export type CommentRow = typeof comments.$inferSelect;
 export type ApprovalRow = typeof approvals.$inferSelect;
 export type DocumentRow = typeof documents.$inferSelect;
+export type ContractRow = typeof contracts.$inferSelect;
+export type ContractVersionRow = typeof contractVersions.$inferSelect;
 export type EstimateRow = typeof estimates.$inferSelect;
 export type EstimateItemRow = typeof estimateItems.$inferSelect;
 export type ScheduleRow = typeof schedules.$inferSelect;
