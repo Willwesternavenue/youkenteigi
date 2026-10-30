@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import { Noto_Sans_JP } from "next/font/google";
+// Noto Sans JP はリポジトリ（npm パッケージ）に同梱する。next/font/google はビルド時に
+// Google から数百の分割ファイルを取得し、その失敗でビルドが落ちることがあったため。
+// 文字範囲ごとの分割配信は同じなので、ブラウザは必要な分だけ読み込む。
+import "@fontsource-variable/noto-sans-jp";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
-
-const notoSansJp = Noto_Sans_JP({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-});
 
 export const metadata: Metadata = {
   title: "要件定義かけるくん Internal",
@@ -21,10 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ja"
-      className={`${notoSansJp.variable} h-full antialiased`}
-    >
+    <html lang="ja" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-muted/30 font-sans">
         {children}
         <Toaster richColors position="top-center" />
